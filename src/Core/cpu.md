@@ -14,11 +14,10 @@ If we can abstract the basic features of a ALU then we can seperate it out.
 
 ```
 class ALU state where 
-    read :: instr -> state -> readinst
-    process :: instr -> state -> readval -> state
-    write :: instr -> state -> writeinstr 
-    move :: instr -> state -> codeloc
-    nop :: instr
+    read :: instr -> state -> Maybe RamAddress
+    compute :: instr -> Maybe ReadVal -> state -> state
+    write :: instr -> state -> Maybe (RamAddress, WriteVal) 
+    move :: instr -> state -> Maybe RomAddress
 ```
 
 In this case readinst would be a data type that tells the underlying system what value to read from

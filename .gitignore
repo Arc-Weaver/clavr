@@ -18,3 +18,13 @@ cabal.sandbox.config
 .stack-work/
 cabal.project.local
 .HTF/
+
+# AVR assembly artifacts — all generated from *.S sources by Setup.hs/avr-as
+*.elf
+*.bin
+
+# GHC environment file written by cabal new-build
+.ghc.environment.*
+
+# Datasheet PDFs — large binaries, not source
+*.pdf

@@ -4,8 +4,7 @@
 module AVR.InstructionSet where
 
 
-import Clash.Sized.Internal.BitVector (bitPattern)
-import Clash.Sized.Unsigned 
+import Clash.Sized.Unsigned
 import Clash.Prelude
    
 
@@ -180,12 +179,10 @@ decodeInstruction $(bitPattern "1111_01kk_kkkk_k101_...._...._...._....") = Brhc
 decodeInstruction $(bitPattern "1111_00kk_kkkk_k101_...._...._...._....") = Brhs (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_01kk_kkkk_k111_...._...._...._....") = Brid (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_00kk_kkkk_k111_...._...._...._....") = Brie (unpack kkkkkkk)
-decodeInstruction $(bitPattern "1111_00kk_kkkk_k000_...._...._...._....") = Brlo (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_00kk_kkkk_k100_...._...._...._....") = Brlt (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_00kk_kkkk_k010_...._...._...._....") = Brmi (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_01kk_kkkk_k001_...._...._...._....") = Brne (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_01kk_kkkk_k010_...._...._...._....") = Brpl (unpack kkkkkkk)
-decodeInstruction $(bitPattern "1111_01kk_kkkk_k000_...._...._...._....") = Brsh (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_01kk_kkkk_k110_...._...._...._....") = Brtc (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_00kk_kkkk_k110_...._...._...._....") = Brts (unpack kkkkkkk)
 decodeInstruction $(bitPattern "1111_01kk_kkkk_k011_...._...._...._....") = Brvc (unpack kkkkkkk)
@@ -197,7 +194,6 @@ decodeInstruction $(bitPattern "1001_0100_0sss_1000_...._...._...._....") = Bset
 decodeInstruction $(bitPattern "1111_101d_dddd_0bbb_...._...._...._....") = Bst (unpack ddddd) (unpack bbb)
 decodeInstruction $(bitPattern "1001_010k_kkkk_111k_kkkk_kkkk_kkkk_kkkk") = Call (unpack kkkkkkkkkkkkkkkkkkkkkk)
 decodeInstruction $(bitPattern "1001_1000_aaaa_abbb_...._...._...._....") = Cbi (unpack aaaaa) (unpack bbb)
-decodeInstruction $(bitPattern "1001_0100_1bbb_1000_...._...._...._....") = Clb (unpack bbb)
 decodeInstruction $(bitPattern "1001_010d_dddd_0000_...._...._...._....") = Com (unpack ddddd)
 decodeInstruction $(bitPattern "0001_01rd_dddd_rrrr_...._...._...._....") = Cp (unpack ddddd) (unpack rrrrr)
 decodeInstruction $(bitPattern "0000_01rd_dddd_rrrr_...._...._...._....") = Cpc (unpack ddddd) (unpack rrrrr)
@@ -262,10 +258,8 @@ decodeInstruction $(bitPattern "1001_1010_aaaa_abbb_...._...._...._....") = Sbi 
 decodeInstruction $(bitPattern "1001_1001_aaaa_abbb_...._...._...._....") = Sbic (unpack aaaaa) (unpack bbb)
 decodeInstruction $(bitPattern "1001_1011_aaaa_abbb_...._...._...._....") = Sbis (unpack aaaaa) (unpack bbb)
 decodeInstruction $(bitPattern "1001_0111_kkdd_kkkk_...._...._...._....") = Sbiw (unpack dd) (unpack kkkkkk)
-decodeInstruction $(bitPattern "0110_kkkk_dddd_kkkk_...._...._...._....") = Sbr (unpack dddd) (unpack kkkkkkkk)
 decodeInstruction $(bitPattern "1111_110r_rrrr_0bbb_...._...._...._....") = Sbrc (unpack rrrrr) (unpack bbb)
 decodeInstruction $(bitPattern "1111_111r_rrrr_0bbb_...._...._...._....") = Sbrs (unpack rrrrr) (unpack bbb)
-decodeInstruction $(bitPattern "1001_0100_0bbb_1000_...._...._...._....") = Seb (unpack bbb)
 decodeInstruction $(bitPattern "1001_0101_1000_1000_...._...._...._....") = Sleep
 decodeInstruction $(bitPattern "1001_0101_1110_1000_...._...._...._....") = Spm ZIndirect 
 decodeInstruction $(bitPattern "1001_0101_1111_1000_...._...._...._....") = Spm ZIndirectPostIncrement
@@ -275,11 +269,11 @@ decodeInstruction $(bitPattern "1001_001r_rrrr_1110_...._...._...._....") = St (
 decodeInstruction $(bitPattern "1000_001r_rrrr_1000_...._...._...._....") = St (unpack rrrrr) YIndirect
 decodeInstruction $(bitPattern "1001_001r_rrrr_1001_...._...._...._....") = St (unpack rrrrr) YIndirectPostIncrement
 decodeInstruction $(bitPattern "1001_001r_rrrr_1010_...._...._...._....") = St (unpack rrrrr) YIndirectPreDecrement
-decodeInstruction $(bitPattern "10q0_qq0r_rrrr_1qqq_...._...._...._....") = St (unpack rrrrr) $ YOffset (unpack qqqqqq)
+decodeInstruction $(bitPattern "10q0_qq1r_rrrr_1qqq_...._...._...._....") = St (unpack rrrrr) $ YOffset (unpack qqqqqq)
 decodeInstruction $(bitPattern "1000_001r_rrrr_0000_...._...._...._....") = St (unpack rrrrr) ZIndirect
 decodeInstruction $(bitPattern "1001_001r_rrrr_0001_...._...._...._....") = St (unpack rrrrr) ZIndirectPostIncrement
 decodeInstruction $(bitPattern "1001_001r_rrrr_0010_...._...._...._....") = St (unpack rrrrr) ZIndirectPreDecrement
-decodeInstruction $(bitPattern "10q0_qq0r_rrrr_0qqq_...._...._...._....") = St (unpack rrrrr) $ ZOffset (unpack qqqqqq)
+decodeInstruction $(bitPattern "10q0_qq1r_rrrr_0qqq_...._...._...._....") = St (unpack rrrrr) $ ZOffset (unpack qqqqqq)
 decodeInstruction $(bitPattern "1001_001d_dddd_0000_kkkk_kkkk_kkkk_kkkk") = Sts (unpack kkkkkkkkkkkkkkkk) (unpack ddddd)
 decodeInstruction $(bitPattern "0001_10rd_dddd_rrrr_...._...._...._....") = Sub (unpack ddddd) (unpack rrrrr)
 decodeInstruction $(bitPattern "0101_kkkk_dddd_kkkk_...._...._...._....") = Subi (unpack dddd) (unpack kkkkkkkk)

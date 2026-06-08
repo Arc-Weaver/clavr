@@ -94,38 +94,56 @@ common common-options
     bytestring
 
 
+-- ---------------------------------------------------------------------------
+-- Core library: generic CPU building blocks + AVR implementation
+--
+-- The 'example/' source directory contains Example.Project — a complete SoC
+-- wiring the AVR core to block RAM, GPIO, and a synthesis top entity.  It
+-- lives in a separate directory so users can read it as a self-contained
+-- example of how to build their own SoC using this library.
+--
+-- Build synthesis artefacts with:
+--   stack run clash -- Example.Project --vhdl
+-- ---------------------------------------------------------------------------
+
 library
   import: common-options
-  hs-source-dirs: src
+  hs-source-dirs: src example
   exposed-modules:
-    Example.Project
+    -- Generic CPU infrastructure
+    Core
+    Core.Memory
+    Core.ALU
+    Core.Periph.GPIO
+    -- AVR implementation
     AVR
     AVR.Core
     AVR.InstructionSet
     AVR.ALU
-    AVR.Exec
     AVR.CPU
-    AVR.Periph.GPIO
+    AVR.Exec
+    AVR.Interrupt
     AVR.TH
-  other-modules:
-    Core.ALU
+    -- Standalone SoC example (see example/ directory)
+    Example.Project
   default-language: Haskell2010
 
--- Builds the executable 'clash', with clavr project in scope
+-- Builds the executable 'clash', with the full library (including example) in scope
 executable clash
   main-is: bin/Clash.hs
   default-language: Haskell2010
-  Build-Depends: base, clash-ghc, clavr
+  build-depends: base, clash-ghc, clavr
   if !os(Windows)
     ghc-options: -dynamic
 
--- Builds the executable 'clashi', with clavr project in scope
+-- Builds the executable 'clashi', with the full library in scope
 executable clashi
   main-is: bin/Clashi.hs
   default-language: Haskell2010
   if !os(Windows)
     ghc-options: -dynamic
   build-depends: base, clash-ghc, clavr
+
 
 test-suite doctests
   type:             exitcode-stdio-1.0
@@ -148,6 +166,7 @@ test-suite test-library
   other-modules:
     Tests.Example.Project
     Tests.AVR.InstructionSet
+    Tests.AVR.Instructions
     Tests.AVR.CPU
   build-depends:
     clavr,

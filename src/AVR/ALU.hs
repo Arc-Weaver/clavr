@@ -107,9 +107,9 @@ add8 rd rr cin =
 sub8 :: AVRWord -> AVRWord -> Bit -> (AVRWord, Bit, Bit)
 sub8 rd rr bin =
     let b    = zeroExtend (unpack (pack bin) :: Unsigned 1) :: Unsigned 9
-        d9   = zeroExtend rd - zeroExtend rr - b
-        r    = truncateB d9 :: AVRWord
-        bo   = msb (pack d9)
+        diff9 = zeroExtend rd - zeroExtend rr - b
+        r    = truncateB diff9 :: AVRWord
+        bo   = msb (pack diff9)
         h5   = zeroExtend (truncateB rd :: Unsigned 4)
              - zeroExtend (truncateB rr :: Unsigned 4)
              - zeroExtend (unpack (pack bin) :: Unsigned 1)
@@ -403,8 +403,12 @@ avrCompute (Bclr s) _ c =
     let w = bitCoerce (pack (status c)) :: AVRWord
     in c { status = unpack (pack (w .&. complement (1 `shiftL` fromIntegral s))) }
 
-avrCompute (Seb s) _ c = avrCompute (Bset s) Nothing c
-avrCompute (Clb s) _ c = avrCompute (Bclr s) Nothing c
+avrCompute (Seb s) _ c =
+    let w = bitCoerce (pack (status c)) :: AVRWord
+    in c { status = unpack (pack (w .|. 1 `shiftL` fromIntegral s)) }
+avrCompute (Clb s) _ c =
+    let w = bitCoerce (pack (status c)) :: AVRWord
+    in c { status = unpack (pack (w .&. complement (1 `shiftL` fromIntegral s))) }
 
 -- BST: T ← Rr(b)
 avrCompute (Bst rd b) _ c =
@@ -597,6 +601,6 @@ avrJump (Brts k) c = if bit_copy      (status c) == 1 then Just (pc c + 1 + from
 avrJump (Brtc k) c = if bit_copy      (status c) == 0 then Just (pc c + 1 + fromIntegral k) else Nothing
 avrJump (Brie k) c = if interrupt_flag(status c) == 1 then Just (pc c + 1 + fromIntegral k) else Nothing
 avrJump (Brid k) c = if interrupt_flag(status c) == 0 then Just (pc c + 1 + fromIntegral k) else Nothing
-avrJump (Brlo k) c = avrJump (Brcs k) c
-avrJump (Brsh k) c = avrJump (Brcc k) c
+avrJump (Brlo k) c = if carry_flag (status c) == 1 then Just (pc c + 1 + fromIntegral k) else Nothing
+avrJump (Brsh k) c = if carry_flag (status c) == 0 then Just (pc c + 1 + fromIntegral k) else Nothing
 avrJump _ _ = Nothing

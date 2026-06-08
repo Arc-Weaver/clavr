@@ -7,11 +7,12 @@ import Test.Tasty.TH
 import Test.Tasty.Hedgehog
 import qualified Hedgehog as H
 
-import Clash.Prelude (BitVector)
+import Clash.Prelude (BitVector, Bit, Unsigned)
 
-import AVR.Core  (zeroState, CoreData)
+import AVR.Core  (zeroState, CoreData(..), StatusRegister(..))
 import AVR.ALU   (getReg)
 import AVR.Exec  (runLinear, runWithPC)
+import AVR.CPU   (CPUState(..), cpuStep, Stage(..))
 
 -- ---------------------------------------------------------------------------
 -- Linear ALU test
@@ -106,6 +107,37 @@ prop_jumpProgram = H.withTests 1 . H.property $ do
     r 16 H.=== 0x00   -- counter decremented to zero
     r 17 H.=== 0x0F   -- sum 5+4+3+2+1 = 15
     r 18 H.=== 0xFF   -- skipped ldi 0x00; original value preserved
+
+-- ---------------------------------------------------------------------------
+-- Interrupt tests
+-- ---------------------------------------------------------------------------
+
+-- | When SREG.I=1 and an interrupt vector arrives, the CPU should:
+--     1. Clear SREG.I immediately (in the same step that accepts the interrupt)
+--     2. Push the current PC onto the stack and jump to the vector
+--        (two pipeline steps total: SFetch1 → SCallPush2 → SFetch1@vector)
+prop_interruptAccepted :: H.Property
+prop_interruptAccepted = H.withTests 1 . H.property $ do
+    let base  = zeroState :: CoreData 16
+        iCore = base { status = (status base) { interrupt_flag = 1 } }
+        s0    = CPUState iCore SFetch1
+    -- Step 1: vector 0x0010 asserted while I=1 → CPU accepts, I-bit cleared
+    let (s1, _) = cpuStep s0 (0x0000, 0x00, Just (0x0010 :: Unsigned 16))
+    interrupt_flag (status (cpuCore s1)) H.=== (0 :: Bit)
+    -- Step 2: second push completes → PC = vector, back to SFetch1
+    let (s2, _) = cpuStep s1 (0x0000, 0x00, Nothing)
+    cpuStage s2          H.=== SFetch1
+    pc (cpuCore s2)      H.=== (0x0010 :: Unsigned 16)
+
+-- | RETI must re-enable the global interrupt flag.
+--   Tested via the software-level simulator (ALU path) since the pipeline
+--   path's SREG.I restore is already exercised by SRetRead2 in avrCore.
+prop_retiRestoresI :: H.Property
+prop_retiRestoresI = H.withTests 1 . H.property $ do
+    let base      = zeroState :: CoreData 16
+        disabledI = base { status = (status base) { interrupt_flag = 0 } }
+        finalCore = runWithPC [0x9518] 1 disabledI   -- 0x9518 = RETI
+    interrupt_flag (status finalCore) H.=== (1 :: Bit)
 
 cpuTests :: TestTree
 cpuTests = $(testGroupGenerator)

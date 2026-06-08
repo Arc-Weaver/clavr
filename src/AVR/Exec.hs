@@ -4,6 +4,7 @@ import Clash.Prelude
 import AVR.Core
 import AVR.InstructionSet
 import AVR.ALU
+import AVR.CPU (CPUState(..), cpuStep)
 
 -- | Run instruction words sequentially, ignoring PC-changing instructions.
 --   Useful for testing linear sequences of instructions.
@@ -42,6 +43,33 @@ runWithPC mem stopAt core
     step instr c seqNext =
         let c' = avrCompute instr Nothing c
         in  c' { pc = maybe seqNext id (avrJump instr c') }
+
+-- | Simulate the full CPU pipeline for @nCycles@ clock cycles, modelling all
+--   pipeline stages and the synchronous memory latency.
+--
+--   The code ROM is a pure word-addressed function.  Data RAM always returns 0
+--   (sufficient for programs that only write to memory, not read from it).
+--
+--   @irqs@ is the interrupt vector to present on each cycle; the list is
+--   consumed left-to-right and padded with Nothing once exhausted.
+--
+--   Useful for testing multi-cycle instructions (CALL/RET, LPM) and interrupt
+--   acceptance without setting up the full Signal-level simulation harness.
+runPipeline
+    :: KnownNat pcBits
+    => (Unsigned pcBits -> BitVector 16)   -- word-addressed code ROM
+    -> [Maybe AVRAddr]                     -- interrupt vector per cycle
+    -> Int                                 -- total cycles to run
+    -> CPUState pcBits
+    -> CPUState pcBits
+runPipeline codeRom irqs nCycles initState = go nCycles irqs initState 0 0
+  where
+    go 0 _  s _         _         = s
+    go n is s pendCode  pendData  =
+        let irq  = case is of { (i:_) -> i; [] -> Nothing }
+            rest = case is of { (_:r) -> r; [] -> [] }
+            (s', (nextCode, _, _)) = cpuStep s (pendCode, pendData, irq)
+        in go (n-1) rest s' (codeRom nextCode) 0
 
 -- Safe list index; returns Nothing for out-of-bounds.
 listAt :: [a] -> Int -> Maybe a

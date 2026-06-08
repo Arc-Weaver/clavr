@@ -4,7 +4,7 @@ import Clash.Prelude
 import AVR.Core
 import AVR.InstructionSet
 import AVR.ALU
-import Core (RomUnit, RamUnit)
+import Core.Memory (RomUnit, RamUnit)
 
 -- ---------------------------------------------------------------------------
 -- Pipeline stage
@@ -38,7 +38,7 @@ data Stage (pcBits :: Nat)
 data CPUState (pcBits :: Nat) = CPUState
     { cpuCore  :: CoreData pcBits
     , cpuStage :: Stage pcBits
-    } deriving (Generic, NFDataX)
+    } deriving (Generic, NFDataX, Show)
 
 type BusOut pcBits =
     ( Unsigned pcBits           -- code ROM address
@@ -52,7 +52,7 @@ type BusOut pcBits =
 
 cpuStep :: KnownNat pcBits
         => CPUState pcBits
-        -> (BitVector 16, AVRWord)
+        -> (BitVector 16, AVRWord, Maybe AVRAddr)
         -> (CPUState pcBits, BusOut pcBits)
 
 -- Warm-up: present PC to code ROM, ignore inputs.
@@ -61,19 +61,29 @@ cpuStep (CPUState core SStart) _ =
     , (pc core, Nothing, Nothing) )
 
 -- Instruction word 0 arrives.
-cpuStep (CPUState core SFetch1) (w0, _) =
-    let partial = decodeInstruction (w0 ++# 0)
-    in if instrWords partial == 2
-       then ( CPUState core (SFetch2 w0)
-            , (pc core + 1, Nothing, Nothing) )
-       else dispatch partial core
+-- If an interrupt is pending and SREG.I=1, divert to the interrupt handler
+-- instead of dispatching the fetched instruction.  The interrupted PC is
+-- pushed as the return address so RETI resumes the correct instruction.
+-- NOTE: like CALL/RET, only 16 bits of the return address are saved; devices
+-- with pcBits=22 lose the upper 6 bits (same limitation as CALL/RET).
+cpuStep (CPUState core SFetch1) (w0, _, irqVec) =
+    case irqVec of
+        Just vecPC | interrupt_flag (status core) == 1 ->
+            let core' = core { status = (status core) { interrupt_flag = 0 } }
+            in startCall (pc core') (fromIntegral vecPC) core'
+        _ ->
+            let partial = decodeInstruction (w0 ++# 0)
+            in if instrWords partial == 2
+               then ( CPUState core (SFetch2 w0)
+                    , (pc core + 1, Nothing, Nothing) )
+               else dispatch partial core
 
 -- Instruction word 1 arrives; assemble the full instruction.
-cpuStep (CPUState core (SFetch2 w0)) (w1, _) =
+cpuStep (CPUState core (SFetch2 w0)) (w1, _, _) =
     dispatch (decodeInstruction (w0 ++# w1)) core
 
 -- Data RAM response: execute now that we have the read value.
-cpuStep (CPUState core (SMemRead instr)) (_, dataIn) =
+cpuStep (CPUState core (SMemRead instr)) (_, dataIn, _) =
     execute instr (Just dataIn) core
 
 -- CALL push byte 2 (hi): write hi byte to DS(SP), SP--, jump.
@@ -83,14 +93,14 @@ cpuStep (CPUState core (SCallPush2 hi targetPC)) _ =
        , (targetPC, Nothing, Just (sp core, hi)) )
 
 -- RET pop byte 1: hi byte arrives; request lo byte.
-cpuStep (CPUState core (SRetRead1 isReti)) (_, hi) =
+cpuStep (CPUState core (SRetRead1 isReti)) (_, hi, _) =
     let newSP   = sp core + 1
         newCore = core { sp = newSP }
     in ( CPUState newCore (SRetRead2 isReti hi)
        , (pc core, Just newSP, Nothing) )
 
 -- RET pop byte 2: lo byte arrives; reconstruct PC.
-cpuStep (CPUState core (SRetRead2 isReti hi)) (_, lo) =
+cpuStep (CPUState core (SRetRead2 isReti hi)) (_, lo, _) =
     let retPC   = fromIntegral
                       ((zeroExtend hi `shiftL` 8 .|. zeroExtend lo) :: Unsigned 16)
         sreg'   = if isReti then (status core) { interrupt_flag = 1 }
@@ -100,7 +110,7 @@ cpuStep (CPUState core (SRetRead2 isReti hi)) (_, lo) =
        , (retPC, Nothing, Nothing) )
 
 -- LPM/ELPM: code word arrives; extract the correct byte.
-cpuStep (CPUState core (SLpmRead rd takeHigh)) (codeWord, _) =
+cpuStep (CPUState core (SLpmRead rd takeHigh)) (codeWord, _, _) =
     let val    = if takeHigh
                  then bitCoerce (truncateB (codeWord `shiftR` 8) :: BitVector 8)
                  else bitCoerce (truncateB codeWord :: BitVector 8)
@@ -256,17 +266,28 @@ isInternal a = a <= 0x001F || (a >= 0x0058 && a <= 0x005F)
 --   Devices with pcBits = 22 need a third byte pushed/popped; the upper 6
 --   bits of the program counter are currently lost on CALL and restored as
 --   zero on RET for those devices.
+-- | AVR CPU core.  Connect to synchronous code ROM and data RAM.
+--
+--   @irqVec@: interrupt vector (word address) to jump to.  The arbiter in
+--   "AVR.Interrupt" combines peripheral request lines into this signal.
+--   Set to @pure Nothing@ if no interrupt sources are used.
+--
+--   Interrupt acceptance: when @irqVec = Just v@ and @SREG.I = 1@, the CPU
+--   accepts the interrupt at the next instruction boundary (SFetch1), clears
+--   SREG.I, pushes the current PC onto the stack, and jumps to @v@.
+--   RETI restores SREG.I and pops the return address.
 avrCore :: forall dom pcBits
          . ( HiddenClockResetEnable dom, KnownNat pcBits )
-        => Signal dom (BitVector 16)              -- code ROM data in
+        => Signal dom (Maybe AVRAddr)              -- interrupt vector in
+        -> Signal dom (BitVector 16)               -- code ROM data in
         -> Signal dom AVRWord                      -- data RAM data in
         -> ( Signal dom (Unsigned pcBits)          -- code ROM address out
-           , Signal dom (Maybe AVRAddr)             -- data RAM read address out
-           , Signal dom (Maybe (AVRAddr, AVRWord))  -- data RAM write out
+           , Signal dom (Maybe AVRAddr)            -- data RAM read address out
+           , Signal dom (Maybe (AVRAddr, AVRWord)) -- data RAM write out
            )
-avrCore codeIn dataIn = (codeAddr, dataRdAddr, dataWr)
+avrCore irqVec codeIn dataIn = (codeAddr, dataRdAddr, dataWr)
   where
-    out = mealy cpuStep (CPUState zeroState SStart) (bundle (codeIn, dataIn))
+    out = mealy cpuStep (CPUState zeroState SStart) (bundle (codeIn, dataIn, irqVec))
     codeAddr   = fmap (\(a, _, _) -> a) out
     dataRdAddr = fmap (\(_, b, _) -> b) out
     dataWr     = fmap (\(_, _, c) -> c) out
@@ -274,13 +295,14 @@ avrCore codeIn dataIn = (codeAddr, dataRdAddr, dataWr)
 -- | Wire avrCore to blockRAM-style memories, closing the feedback loop.
 avrSoC :: forall dom pcBits
         . ( HiddenClockResetEnable dom, KnownNat pcBits )
-       => RomUnit dom (Unsigned pcBits) (BitVector 16)
+       => Signal dom (Maybe AVRAddr)                    -- interrupt vector in
+       -> RomUnit dom (Unsigned pcBits) (BitVector 16)
        -> RamUnit dom AVRAddr AVRWord
        -> ( Signal dom (Unsigned pcBits)
           , Signal dom (Maybe AVRAddr)
           , Signal dom (Maybe (AVRAddr, AVRWord)) )
-avrSoC codeRom dataRam = (codeAddr, dataRdAddr, dataWr)
+avrSoC irqVec codeRom dataRam = (codeAddr, dataRdAddr, dataWr)
   where
-    (codeAddr, dataRdAddr, dataWr) = avrCore @dom @pcBits codeIn dataIn
+    (codeAddr, dataRdAddr, dataWr) = avrCore @dom @pcBits irqVec codeIn dataIn
     codeIn = codeRom codeAddr
     dataIn = dataRam (maybe 0 id <$> dataRdAddr) dataWr

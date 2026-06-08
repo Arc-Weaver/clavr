@@ -15,7 +15,7 @@ main = defaultMainWithHooks simpleUserHooks
         preBuild simpleUserHooks args flags
     }
 
--- | Assemble src/Example/program.S → program.bin if avr-binutils is
+-- | Assemble example/Example/program.S → program.bin if avr-binutils is
 --   available and the source is newer than the binary.
 --
 --   Silently skips if:
@@ -26,7 +26,7 @@ main = defaultMainWithHooks simpleUserHooks
 --     - avr-as is not on PATH AND program.bin does not exist
 assembleExampleProgram :: IO ()
 assembleExampleProgram = do
-    let dir = "src" </> "Example"
+    let dir = "example" </> "Example"
         src = dir </> "program.S"
         obj = dir </> "program.o"
         elf = dir </> "program.elf"
@@ -42,14 +42,14 @@ assembleExampleProgram = do
                     then notice normal
                              "avr-as not found; using pre-built program.bin"
                     else fail $ unlines
-                             [ "avr-as not found and src/Example/program.bin is missing."
+                             [ "avr-as not found and example/Example/program.bin is missing."
                              , "Install avr-binutils (e.g. apt install binutils-avr) and"
                              , "re-run the build, or commit a pre-built program.bin."
                              ]
             Just _ -> do
                 stale <- isStale src bin
                 when stale $ do
-                    notice normal "Assembling src/Example/program.S ..."
+                    notice normal "Assembling example/Example/program.S ..."
                     callProcess "avr-as"
                         ["-mmcu=atmega2560", src, "-o", obj]
                     callProcess "avr-ld"

@@ -6,7 +6,7 @@ module Example.Project where
 import Clash.Prelude
 import AVR.Core        (AVRAddr, AVRWord)
 import AVR.CPU         (avrCore)
-import AVR.Periph.GPIO (gpioUnit)
+import Core.Periph.GPIO (gpioUnit)
 import AVR.TH          (loadAvrBin)
 
 -- ---------------------------------------------------------------------------
@@ -17,15 +17,10 @@ createDomain vSystem{vName="Dom10MHz", vPeriod=hzToPeriod 10e6}
 
 -- ---------------------------------------------------------------------------
 -- Program ROM
---
--- Assembled from src/Example/program.S by Setup.hs at build time.
--- The binary is padded to the next power of two with NOPs (0x0000), so the
--- Vec size is always a power of two — required for block-RAM addressing.
--- The type annotation must match the padded size; a mismatch is a type error.
 -- ---------------------------------------------------------------------------
 
 testProgram :: Vec 16 (BitVector 16)
-testProgram = $(loadAvrBin "src/Example/program.bin")
+testProgram = $(loadAvrBin "example/Example/program.bin")
 
 -- ---------------------------------------------------------------------------
 -- Memory map
@@ -35,7 +30,7 @@ testProgram = $(loadAvrBin "src/Example/program.bin")
 gpioABase :: AVRAddr
 gpioABase = 0x0060
 
--- SRAM: 2 KB at 0x0200-0x09FF  (matches ATmega2560 internal SRAM base)
+-- SRAM: 2 KB at 0x0200-0x09FF
 sramBase :: AVRAddr
 sramBase = 0x0200
 
@@ -57,21 +52,16 @@ inSRAM a = a >= sramBase && a < sramBase + fromIntegral sramWords
 --   Returns @(portOut, ddrOut)@ for GPIO Port A:
 --
 --     portOut - the PORT latch; connect to the O pin of each IOBUF.
---     ddrOut  - data-direction register.  A '1' bit means the corresponding
---               pin is an OUTPUT (driven from portOut).  A '0' bit means
---               INPUT (high-Z; portOut bit is ignored electrically).
---               Connect to the T (tri-state enable) pin of each IOBUF,
---               inverting polarity if your primitive uses active-low T.
---
---   On real AVR silicon, writing PORT while DDR=0 enables the internal
---   pull-up.  This SoC does not model pull-ups.
+--     ddrOut  - data-direction register.  A '1' bit means OUTPUT (driven from
+--               portOut).  A '0' bit means INPUT (high-Z).
+--               Connect to the T pin of each IOBUF (active-high here).
 soc :: forall dom . HiddenClockResetEnable dom
     => Signal dom AVRWord                        -- GPIO A physical pin inputs
     -> (Signal dom AVRWord, Signal dom AVRWord)  -- (PORT latch, DDR / OE)
 soc gpioIn = (portOut, ddrOut)
   where
     -- ── CPU ──────────────────────────────────────────────────────────────────
-    (codeAddr, rdAddr, wr) = avrCore @dom @16 codeIn dataIn
+    (codeAddr, rdAddr, wr) = avrCore @dom @16 (pure Nothing) codeIn dataIn
 
     -- ── Code ROM (synchronous, 1-cycle latency via blockRam) ─────────────────
     codeIn = blockRam testProgram
@@ -81,7 +71,7 @@ soc gpioIn = (portOut, ddrOut)
         toRomIdx :: Unsigned 16 -> Index 16
         toRomIdx = fromIntegral
 
-    -- ── SRAM (2 KB at 0x0200, synchronous) ──────────────────────────────────
+    -- ── SRAM (2 KB at 0x0200) ────────────────────────────────────────────────
     sramRdIdx :: Signal dom (Index 2048)
     sramRdIdx = fmap rdIdx rdAddr
       where
@@ -99,13 +89,9 @@ soc gpioIn = (portOut, ddrOut)
     sramRd = blockRam (replicate (SNat @2048) 0) sramRdIdx sramWr
 
     -- ── GPIO Port A ──────────────────────────────────────────────────────────
-    --   portOut: driven value (connect to IOBUF O)
-    --   ddrOut:  output enable per-bit (connect to IOBUF T, active-high here)
     (gpioRd, portOut, ddrOut) = gpioUnit gpioABase gpioIn rdAddr wr
 
     -- ── Read-data mux ────────────────────────────────────────────────────────
-    -- Register which peripheral was addressed so we can select the right
-    -- read-data source one cycle later (when the CPU consumes dataIn).
     lastWasGPIO :: Signal dom Bool
     lastWasGPIO = register False (maybe False inGPIO_A <$> rdAddr)
 
@@ -124,8 +110,8 @@ soc gpioIn = (portOut, ddrOut)
                  , PortName "gpio_a_in"
                  ]
     , t_output = PortProduct ""
-                     [ PortName "gpio_a_port"  -- PORT latch -> IOBUF O
-                     , PortName "gpio_a_ddr"   -- DDR -> IOBUF T (1=output)
+                     [ PortName "gpio_a_port"
+                     , PortName "gpio_a_ddr"
                      ]
     }) #-}
 
@@ -134,6 +120,6 @@ soc gpioIn = (portOut, ddrOut)
 topEntity :: Clock Dom10MHz
           -> Reset Dom10MHz
           -> Enable Dom10MHz
-          -> Signal Dom10MHz AVRWord                         -- physical inputs (IOBUF I)
-          -> (Signal Dom10MHz AVRWord, Signal Dom10MHz AVRWord) -- (gpio_a_port, gpio_a_ddr)
+          -> Signal Dom10MHz AVRWord
+          -> (Signal Dom10MHz AVRWord, Signal Dom10MHz AVRWord)
 topEntity = exposeClockResetEnable soc

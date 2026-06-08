@@ -65,7 +65,7 @@ data CoreData (pcBits :: Nat) = CoreData
     , rampz     :: AVRWord
     , eind      :: AVRWord
     , status    :: StatusRegister
-    } deriving (Generic, NFDataX)
+    } deriving (Generic, NFDataX, Show)
 
 type SmallAVR = CoreData 16  -- ATmega328P, ATtiny88, etc.
 type LargeAVR = CoreData 22  -- ATmega2560, XMEGA, etc.

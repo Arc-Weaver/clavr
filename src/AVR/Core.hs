@@ -2,6 +2,7 @@ module AVR.Core where
 
 import Clash.Prelude
 import AVR.InstructionSet (Instruction, instrWords, decodeInstruction)
+import qualified Core.Decode as D
 
 type AVRWord  = Unsigned 8
 type AVRAddr  = Unsigned 16
@@ -88,26 +89,15 @@ zeroState = CoreData
 
 -- | Decode pipeline state. Handles the 4 two-word instructions
 --   (CALL, JMP, LDS, STS) by stashing the first word until the second arrives.
-data DecodeState = AwaitFirst | AwaitSecond (BitVector 16)
-    deriving (Generic, NFDataX, Show, Eq)
+type DecodeState = D.DecodeState (BitVector 16)
 
 -- | One pipeline step: consume one 16-bit word from code memory.
---
---   First word: decode zero-padded. instrWords on the result determines
---   whether a second word is needed — no separate pre-decoder required.
---
---   Second word (if needed): decode the full 32-bit instruction.
---
---   Returns Nothing on the stall cycle between the two words of a
---   2-word instruction.
+--   Returns Nothing on the stall cycle between the two words of a 2-word instruction.
 decodeStep :: DecodeState -> BitVector 16 -> (DecodeState, Maybe Instruction)
-decodeStep AwaitFirst w0 =
-    let partial = decodeInstruction (w0 ++# (0 :: BitVector 16))
-    in if instrWords partial == 1
-       then (AwaitFirst,      Just partial)
-       else (AwaitSecond w0,  Nothing)
-decodeStep (AwaitSecond w0) w1 =
-    (AwaitFirst, Just (decodeInstruction (w0 ++# w1)))
+decodeStep = D.decodeStep
+    (\i -> instrWords i == 2)
+    (\w0 -> decodeInstruction (w0 ++# (0 :: BitVector 16)))
+    (\w0 w1 -> decodeInstruction (w0 ++# w1))
 
 -- | Mealy machine wrapping decodeStep.
 --   Input:  stream of 16-bit words from code memory (one per clock).
@@ -117,4 +107,7 @@ instructionDecoder
     :: HiddenClockResetEnable dom
     => Signal dom (BitVector 16)
     -> Signal dom (Maybe Instruction)
-instructionDecoder = mealy decodeStep AwaitFirst
+instructionDecoder = D.instructionDecoder
+    (\i -> instrWords i == 2)
+    (\w0 -> decodeInstruction (w0 ++# (0 :: BitVector 16)))
+    (\w0 w1 -> decodeInstruction (w0 ++# w1))

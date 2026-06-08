@@ -114,6 +114,10 @@ library
     Core
     Core.Memory
     Core.ALU
+    Core.Decode
+    Core.CPU
+    Core.ISA
+    Core.Pipeline
     Core.Periph.GPIO
     -- AVR implementation
     AVR
@@ -164,6 +168,8 @@ test-suite test-library
   ghc-options: -threaded
   main-is: unittests.hs
   other-modules:
+    Tests.Core.ISA
+    Tests.Core.Pipeline
     Tests.Example.Project
     Tests.AVR.InstructionSet
     Tests.AVR.Instructions

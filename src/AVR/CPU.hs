@@ -5,6 +5,7 @@ import AVR.Core
 import AVR.InstructionSet
 import AVR.ALU
 import Core.Memory (RomUnit, RamUnit)
+import Core.CPU (runInstruction)
 
 -- ---------------------------------------------------------------------------
 -- Pipeline stage
@@ -168,11 +169,11 @@ execute :: KnownNat pcBits
         => Instruction -> Maybe AVRWord -> CoreData pcBits
         -> (CPUState pcBits, BusOut pcBits)
 execute instr mval core =
-    let writeSpec = fmap (\(a, v) -> (truncateB a, v)) (avrXWrite instr core)
-        core'     = avrCompute instr mval core
-        nextPC    = maybe (pc core' + fromIntegral (instrWords instr)) id
-                          (avrJump instr core')
-        newCore   = core' { pc = nextPC }
+    let (newCore, writeSpecX, nextPC) = runInstruction avrXALU
+                                            pc (\c p -> c { pc = p })
+                                            (fromIntegral . instrWords)
+                                            instr mval core
+        writeSpec = fmap (\(a, v) -> (truncateB a, v)) writeSpecX
     in ( CPUState newCore SFetch1
        , (nextPC, Nothing, writeSpec) )
 

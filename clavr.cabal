@@ -184,3 +184,16 @@ test-suite test-library
     tasty >= 1.2 && < 1.6,
     tasty-hedgehog,
     tasty-th
+
+-- GHDL behavioural simulation of the synthesised VHDL.
+-- Requires ghdl and make on PATH, and a pre-generated vhdl/ directory.
+-- Generate with: cabal run clash -- Example.Project --vhdl
+test-suite vhdl-sim
+  default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  main-is:          vhdl_sim.hs
+  ghc-options:      -Wall -Wcompat
+  build-depends:
+    base,
+    process

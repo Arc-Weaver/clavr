@@ -28,3 +28,12 @@ cabal.project.local
 
 # Datasheet PDFs — large binaries, not source
 *.pdf
+
+# Clash-generated VHDL (regenerate with: cabal run clash -- Example.Project --vhdl)
+vhdl/
+
+# GHDL compilation work directory (regenerate with: make -C sim)
+sim/work/
+
+# Claude Code auto-memory (local to each developer's session)
+memory/

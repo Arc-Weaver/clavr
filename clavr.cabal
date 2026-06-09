@@ -110,15 +110,17 @@ library
   import: common-options
   hs-source-dirs: src example
   exposed-modules:
-    -- Generic CPU infrastructure
+    -- Generic CPU infrastructure (architecture-agnostic)
     Core
     Core.Memory
     Core.ALU
     Core.Decode
-    Core.CPU
-    Core.ISA
-    Core.Pipeline
     Core.Periph.GPIO
+    -- Harvard-architecture building blocks
+    Core.Harvard
+    Core.Harvard.ISA
+    Core.Harvard.CPU
+    Core.Harvard.Pipeline
     -- AVR implementation
     AVR
     AVR.Core
@@ -168,8 +170,8 @@ test-suite test-library
   ghc-options: -threaded
   main-is: unittests.hs
   other-modules:
-    Tests.Core.ISA
-    Tests.Core.Pipeline
+    Tests.Core.Harvard.ISA
+    Tests.Core.Harvard.Pipeline
     Tests.Core.GPIO
     Tests.Example.Project
     Tests.AVR.InstructionSet

@@ -1,0 +1,4 @@
+v 4
+file . "avr_soc_types.vhdl" "d06e8207fce59af01ee9687a825b798bf2882579" "20260609031621.766":
+  package avr_soc_types at 1( 0) + 0 on 11 body;
+  package body avr_soc_types at 194( 8592) + 0 on 12;

@@ -1,4 +1,4 @@
-module Tests.Core.ISA where
+module Tests.Core.Harvard.ISA where
 
 import Prelude hiding (read, repeat, (!!))
 
@@ -7,9 +7,9 @@ import Test.Tasty.TH
 import Test.Tasty.Hedgehog
 import qualified Hedgehog as H
 
-import Clash.Prelude (Unsigned, Vec, Index, NFDataX, Generic, repeat, replace, (!!))
+import Clash.Prelude (Unsigned, Vec, Index, NFDataX, Generic, BitVector, repeat, replace, (!!))
 
-import Core.ISA
+import Core.Harvard.ISA
 
 -- ---------------------------------------------------------------------------
 -- Minimal test ISA
@@ -97,6 +97,11 @@ instance ALU TState where
 
 instance ISA TState where
     type IsaStage TState = TIsaStage
+    -- FetchWord: 8-bit fetch units (not used by the current test pipeline,
+    -- but fixes the Harvard code-bus type for this ISA).
+    type FetchWord TState = Unsigned 8
+    -- MaxFetch: all test instructions fit in a single fetch word.
+    type MaxFetch  TState = 1
 
     latency (TMul _ _) = 2
     latency _          = 1
@@ -314,6 +319,18 @@ prop_latency_mul_is_two = H.withTests 1 . H.property $
 prop_latency_jump_is_one :: H.Property
 prop_latency_jump_is_one = H.withTests 1 . H.property $
     latency @TState (TJump 0x20) H.=== 1
+
+-- ---------------------------------------------------------------------------
+-- instrFetch tests
+-- ---------------------------------------------------------------------------
+
+prop_instrFetch_defaults_to_one :: H.Property
+prop_instrFetch_defaults_to_one = H.withTests 1 . H.property $
+    instrFetch @TState TNop H.=== 1
+
+prop_instrFetch_mul_is_one :: H.Property
+prop_instrFetch_mul_is_one = H.withTests 1 . H.property $
+    instrFetch @TState (TMul 0 1) H.=== 1
 
 -- ---------------------------------------------------------------------------
 -- Interrupt tests

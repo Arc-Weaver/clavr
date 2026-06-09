@@ -1,5 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module Core.ISA where
+module Core.Harvard.ISA where
 
 import Clash.Prelude
 
@@ -32,14 +32,45 @@ class ALU state where
 
 -- | Pipeline-visible qualities beyond the base ALU.
 --   Covers instruction latency, multi-cycle ISA stages, and interrupts.
+--
+--   The two fetch-related associated types make the Harvard code-bus interface
+--   explicit at the type level:
+--
+--   @FetchWord state@ — the unit delivered by the code bus each cycle.
+--     - 'BitVector' 16 for AVR (16-bit instruction words)
+--     - 'Unsigned' 8 for MCS-51 (byte-addressed flash)
+--
+--   @MaxFetch state@ — static upper bound on instruction width in FetchWords.
+--     - 2 for AVR (1- or 2-word instructions)
+--     - 3 for MCS-51 (1-, 2-, or 3-byte instructions)
+--
+--   At synthesis time Clash can size the fetch buffer as
+--   @Vec (MaxFetch state) (FetchWord state)@ with no wasted bits.
+--   The runtime decision of how many words a specific opcode needs is made
+--   by 'instrFetch'.
 class ALU state => ISA state where
     type IsaStage state
+
+    -- | Code-bus unit type.  Determines the width of the synchronous code ROM
+    --   output port in synthesised hardware.
+    type FetchWord state
+
+    -- | Static upper bound on instruction width in 'FetchWord' units.
+    --   Used to size the fetch buffer at elaboration time.
+    type MaxFetch state :: Nat
 
     -- | Pipeline stages this instruction occupies. 1 = single-cycle.
     --   Use >1 for fixed-latency multi-cycle ops (MUL, barrel shift, etc.).
     --   The pipeline inserts latency-1 bubbles automatically.
     latency :: Instr state -> Int
     latency _ = 1
+
+    -- | How many 'FetchWord' units this instruction occupies.
+    --   Checked after the first word arrives; if >1, the pipeline accumulates
+    --   further words before dispatching.  Must be <= MaxFetch state.
+    --   Default: 1 (single-word / single-byte instructions).
+    instrFetch :: Instr state -> Int
+    instrFetch _ = 1
 
     -- | Dispatch to an ISA-specific multi-cycle stage when the generic
     --   pipeline cannot model the instruction (CALL, RET, LPM, etc.).

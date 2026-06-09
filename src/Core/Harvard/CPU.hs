@@ -1,4 +1,4 @@
-module Core.CPU where
+module Core.Harvard.CPU where
 
 import Clash.Prelude
 import Core.ALU (ALU(..))

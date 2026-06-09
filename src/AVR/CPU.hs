@@ -5,7 +5,7 @@ import AVR.Core
 import AVR.InstructionSet
 import AVR.ALU
 import Core.Memory (RomUnit, RamUnit)
-import Core.CPU (runInstruction)
+import Core.Harvard.CPU (runInstruction)
 
 -- ---------------------------------------------------------------------------
 -- Pipeline stage

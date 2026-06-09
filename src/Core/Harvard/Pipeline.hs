@@ -1,5 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module Core.Pipeline
+module Core.Harvard.Pipeline
     ( PipeState(..)
     , PipeInput(..)
     , PipeOutput(..)
@@ -9,7 +9,7 @@ module Core.Pipeline
 
 import Clash.Prelude hiding (read)
 import Data.Maybe (fromMaybe)
-import Core.ISA
+import Core.Harvard.ISA
 
 -- | Pipeline register state: n+1 slots plus a latency countdown.
 --   Slot 0 is the execute (head) end; slot n is the fetch (tail) end.
@@ -83,10 +83,10 @@ pipelineStep (PipeState slots lat) cpuState inp =
       -- pipeline; ISA stages that need ROM data should carry it in their stage
       -- type.
       SIsa stage ->
-          let memVal       = fromMaybe (errorX "Core.Pipeline: SIsa expects mem resp")
+          let memVal       = fromMaybe (errorX "Core.Harvard.Pipeline: SIsa expects mem resp")
                                        (pipeMemResp inp)
               (cpu', done) = isaStageStep stage
-                                 (errorX "Core.Pipeline: SIsa ROM feed unimplemented", memVal)
+                                 (errorX "Core.Harvard.Pipeline: SIsa ROM feed unimplemented", memVal)
                                  cpuState
           in case done of
               Left  stage' ->

@@ -1,0 +1,10 @@
+v 4
+file "/home/binaryblade/clavr2/sim/" "tb_avr_soc.vhdl" "d15a3d4e3ba318e2516b0fec67d93072b69ae4b5" "20260609031923.386":
+  entity tb_avr_soc at 22( 859) + 0 on 15;
+  architecture sim of tb_avr_soc at 31( 1019) + 0 on 16;
+file "/home/binaryblade/clavr2/sim/" "../vhdl/Example.Project.topEntity/avr_soc.vhdl" "ff913be5c52454ca00c8ee549e29b2c4496526d7" "20260609031923.386":
+  entity avr_soc at 2( 35) + 0 on 13;
+  architecture structural of avr_soc at 22( 560) + 0 on 14;
+file "/home/binaryblade/clavr2/sim/" "../vhdl/Example.Project.topEntity/avr_soc_types.vhdl" "d06e8207fce59af01ee9687a825b798bf2882579" "20260609031923.326":
+  package avr_soc_types at 1( 0) + 0 on 11 body;
+  package body avr_soc_types at 194( 8592) + 0 on 12;

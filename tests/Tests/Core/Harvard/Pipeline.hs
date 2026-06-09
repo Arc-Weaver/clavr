@@ -1,4 +1,4 @@
-module Tests.Core.Pipeline where
+module Tests.Core.Harvard.Pipeline where
 
 import Prelude hiding (read, repeat, (!!))
 
@@ -9,10 +9,10 @@ import qualified Hedgehog as H
 
 import qualified Clash.Prelude as C
 
-import Core.ISA
-import Core.Pipeline
+import Core.Harvard.ISA
+import Core.Harvard.Pipeline
 
-import Tests.Core.ISA
+import Tests.Core.Harvard.ISA
     ( TState(..), TInstr(..), TIsaStage(..)
     , initState, withZero, setReg, getReg
     )

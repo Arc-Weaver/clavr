@@ -8,7 +8,7 @@ import AVR.Core        (AVRAddr, AVRWord)
 import AVR.CPU         (avrCore)
 import AVR.Interrupt   (interruptArbiter)
 import Core.Periph.GPIO (gpioUnit)
-import AVR.TH          (loadAvrBin)
+import Core.TH         (loadBin16LE)
 
 -- ---------------------------------------------------------------------------
 -- Clock domain
@@ -21,7 +21,7 @@ createDomain vSystem{vName="Dom10MHz", vPeriod=hzToPeriod 10e6}
 -- ---------------------------------------------------------------------------
 
 testProgram :: Vec 16 (BitVector 16)
-testProgram = $(loadAvrBin "example/Example/program.bin")
+testProgram = $(loadBin16LE "example/Example/program.bin")
 
 -- ---------------------------------------------------------------------------
 -- Memory map

@@ -89,9 +89,6 @@ common common-options
     ghc-typelits-extra,
     ghc-typelits-knownnat,
 
-    -- for AVR.TH
-    template-haskell >= 2.16,
-    bytestring
 
 
 -- ---------------------------------------------------------------------------
@@ -118,7 +115,6 @@ library
     AVR.CPU
     AVR.Exec
     AVR.Interrupt
-    AVR.TH
     -- Standalone SoC example (see example/ directory)
     Example.Project
   build-depends:

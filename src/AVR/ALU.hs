@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module AVR.ALU where
 
 import Clash.Prelude
 import AVR.Core
 import AVR.InstructionSet
-import Core.ALU
+import Core.Harvard.ISA (ALU(..))
 
 -- ---------------------------------------------------------------------------
 -- Register file access
@@ -511,17 +512,19 @@ storeLoad :: KnownNat n => CoreData n -> Register -> Maybe AVRWord -> CoreData n
 storeLoad c rd = maybe c (setReg c rd)
 
 -- ---------------------------------------------------------------------------
--- Remaining ALU record (interfaces stubbed pending executor design)
+-- ALU typeclass instance for CoreData
 -- ---------------------------------------------------------------------------
 
-avrXALU :: KnownNat pcBits
-         => ALU Instruction (CoreData pcBits) AVRXAddr (Unsigned pcBits) AVRWord
-avrXALU = ALU
-    { read    = avrXRead
-    , compute = avrCompute
-    , write   = avrXWrite
-    , jump    = avrJump
-    }
+instance KnownNat pcBits => ALU (CoreData pcBits) where
+    type Instr   (CoreData pcBits) = Instruction
+    type RamAddr (CoreData pcBits) = AVRXAddr
+    type RomAddr (CoreData pcBits) = Unsigned pcBits
+    type Val     (CoreData pcBits) = AVRWord
+
+    read    = avrXRead
+    compute = avrCompute
+    write   = avrXWrite
+    move    = avrJump
 
 avrXRead :: KnownNat pcBits => Instruction -> CoreData pcBits -> Maybe AVRXAddr
 avrXRead (Pop _)      c = Just (zeroExtend (sp c) + 1)

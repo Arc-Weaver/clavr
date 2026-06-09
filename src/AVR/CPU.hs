@@ -169,7 +169,7 @@ execute :: KnownNat pcBits
         => Instruction -> Maybe AVRWord -> CoreData pcBits
         -> (CPUState pcBits, BusOut pcBits)
 execute instr mval core =
-    let (newCore, writeSpecX, nextPC) = runInstruction avrXALU
+    let (newCore, writeSpecX, nextPC) = runInstruction
                                             pc (\c p -> c { pc = p })
                                             (fromIntegral . instrWords)
                                             instr mval core

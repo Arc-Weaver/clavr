@@ -6,6 +6,7 @@ module Example.Project where
 import Clash.Prelude
 import AVR.Core        (AVRAddr, AVRWord)
 import AVR.CPU         (avrCore)
+import AVR.Interrupt   (interruptArbiter)
 import Core.Periph.GPIO (gpioUnit)
 import AVR.TH          (loadAvrBin)
 
@@ -47,6 +48,23 @@ inSRAM a = a >= sramBase && a < sramBase + fromIntegral sramWords
 -- SoC: CPU + GPIO + SRAM + bus demux
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- Periodic timer: fires one cycle pulse every 2^n clock cycles
+-- ---------------------------------------------------------------------------
+
+-- | Free-running counter that asserts True for one cycle each time it wraps.
+--   Period = 2^n clock cycles.  Used as the interrupt source for the example.
+periodicTimer :: forall dom n . (HiddenClockResetEnable dom, KnownNat n)
+              => SNat n -> Signal dom Bool
+periodicTimer SNat = fmap (== maxBound) cnt
+  where
+    cnt :: Signal dom (Unsigned n)
+    cnt = register 0 (fmap (+1) cnt)
+
+-- ---------------------------------------------------------------------------
+-- SoC
+-- ---------------------------------------------------------------------------
+
 -- | Full SoC wiring.
 --
 --   Returns @(portOut, ddrOut)@ for GPIO Port A:
@@ -60,8 +78,15 @@ soc :: forall dom . HiddenClockResetEnable dom
     -> (Signal dom AVRWord, Signal dom AVRWord)  -- (PORT latch, DDR / OE)
 soc gpioIn = (portOut, ddrOut)
   where
+    -- ── Interrupt controller ─────────────────────────────────────────────────
+    -- Timer fires every 32 cycles (SNat @5 → period = 2^5).
+    -- The CPU gates acceptance on SREG.I internally; we pass pure True here so
+    -- the arbiter always forwards the request and the CPU decides when to take it.
+    timerReq = periodicTimer (SNat @5)
+    irqVec   = interruptArbiter ((timerReq, 0x0001) :> Nil) (pure True)
+
     -- ── CPU ──────────────────────────────────────────────────────────────────
-    (codeAddr, rdAddr, wr) = avrCore @dom @16 (pure Nothing) codeIn dataIn
+    (codeAddr, rdAddr, wr) = avrCore @dom @16 irqVec codeIn dataIn
 
     -- ── Code ROM (synchronous, 1-cycle latency via blockRam) ─────────────────
     codeIn = blockRam testProgram

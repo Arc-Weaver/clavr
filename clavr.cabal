@@ -170,9 +170,11 @@ test-suite test-library
   other-modules:
     Tests.Core.ISA
     Tests.Core.Pipeline
+    Tests.Core.GPIO
     Tests.Example.Project
     Tests.AVR.InstructionSet
     Tests.AVR.Instructions
+    Tests.AVR.Interrupt
     Tests.AVR.CPU
   build-depends:
     clavr,

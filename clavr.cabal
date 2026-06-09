@@ -114,7 +114,6 @@ library
     AVR.ALU
     AVR.CPU
     AVR.Exec
-    AVR.Interrupt
     -- Standalone SoC example (see example/ directory)
     Example.Project
   build-depends:
@@ -164,6 +163,7 @@ test-suite test-library
     Tests.AVR.CPU
   build-depends:
     clavr,
+    isacle,
     QuickCheck,
     clash-prelude-hedgehog,
     hedgehog,

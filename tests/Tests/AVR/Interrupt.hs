@@ -11,7 +11,7 @@ import qualified Clash.Prelude as C
 import Clash.Prelude (Bit)
 
 import AVR.Core     (AVRAddr, zeroState, CoreData(..), StatusRegister(..))
-import AVR.Interrupt (interruptArbiter)
+import Core.Periph.Interrupt (interruptArbiter)
 import AVR.CPU      (CPUState(..), Stage(..), cpuStep)
 import AVR.Exec     (runPipeline)
 import AVR.ALU      (getReg)

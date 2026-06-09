@@ -6,7 +6,7 @@ module Example.Project where
 import Clash.Prelude
 import AVR.Core        (AVRAddr, AVRWord)
 import AVR.CPU         (avrCore)
-import AVR.Interrupt   (interruptArbiter)
+import Core.Periph.Interrupt (interruptArbiter)
 import Core.Periph.GPIO (gpioUnit)
 import Core.TH         (loadBin16LE)
 

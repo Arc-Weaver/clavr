@@ -3,4 +3,5 @@ set -euo pipefail
 
 FORMAT=${1:-vhdl}   # vhdl | verilog | systemverilog
 
-exec stack run clash -- Example.Project "--$FORMAT"
+stack build clavr:exe:clash
+exec stack exec clash -- Example.Project "--$FORMAT"

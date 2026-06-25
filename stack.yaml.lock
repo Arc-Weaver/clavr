@@ -5,17 +5,6 @@
 
 packages:
 - completed:
-    name: isacle
-    pantry-tree:
-      sha256: 4df9c5ab7a52befd45690ac0765175152db934d2be524f8960979d4fd1780e47
-      size: 1710
-    sha256: c27121d7dacced45125cc4ba261168e47ccd41a9b65f04eecc4775756f390668
-    size: 25006
-    url: https://github.com/JonathanFraser/ISACLE/archive/5005af3.tar.gz
-    version: '0.1'
-  original:
-    url: https://github.com/JonathanFraser/ISACLE/archive/5005af3.tar.gz
-- completed:
     hackage: clash-ghc-1.8.4@sha256:3f758c59c6024fc8f625e38cf866a4ea5981a38a8f8bfb3288d2123457730049,9866
     pantry-tree:
       sha256: 5e5b275f4327361afd092c7b6b138747ccb08de452886589aa74be5fcb2a1e9e

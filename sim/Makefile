@@ -1,11 +1,20 @@
-GHDL     := ghdl
-STD      := --std=08
-WORKDIR  := work
-VHDLDIR  := ../vhdl/Example.Project.topEntity
+GHDL    := ghdl
+STD     := --std=08
+WORKDIR := work
+BUILDDIR := ../build/avr_soc
 
-SRCS := $(VHDLDIR)/avr_soc_types.vhdl \
-        $(VHDLDIR)/avr_soc.vhdl \
-        tb_avr_soc.vhdl
+# Compile order: leaves first, top last, then testbench.
+SRCS := \
+    $(BUILDDIR)/isacle_ram_32x8.vhd    \
+    $(BUILDDIR)/isacle_ram_2048x8.vhd  \
+    $(BUILDDIR)/isacle_rom_16x16.vhd   \
+    $(BUILDDIR)/uart0.vhd              \
+    $(BUILDDIR)/timer0.vhd             \
+    $(BUILDDIR)/gpio0.vhd              \
+    $(BUILDDIR)/ram0.vhd               \
+    $(BUILDDIR)/databus.vhd            \
+    $(BUILDDIR)/avr_soc.vhd            \
+    tb_avr_soc.vhdl
 
 TOP := tb_avr_soc
 
@@ -13,16 +22,13 @@ TOP := tb_avr_soc
 
 all: sim
 
-# Compile all VHDL sources into the work library
-work/work-obj08.cf: $(SRCS)
+$(WORKDIR)/work-obj08.cf: $(SRCS)
 	@mkdir -p $(WORKDIR)
 	$(GHDL) -a $(STD) --workdir=$(WORKDIR) $(SRCS)
 
-# Elaborate the top entity
-$(WORKDIR)/$(TOP): work/work-obj08.cf
+$(WORKDIR)/$(TOP): $(WORKDIR)/work-obj08.cf
 	$(GHDL) -e $(STD) --workdir=$(WORKDIR) --work=work $(TOP)
 
-# Run simulation; optionally emit a VCD with: make sim VCD=1
 RUNOPTS := --ieee-asserts=disable
 
 sim: $(WORKDIR)/$(TOP)

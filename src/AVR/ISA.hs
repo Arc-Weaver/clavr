@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 module AVR.ISA
     ( module AVR.ISA.Types
     , module AVR.ISA.Arith
@@ -8,6 +10,7 @@ module AVR.ISA
     , avrCoreInstrs
     , avrMulInstrs
     , avrExtInstrs
+    , avrIrqBody
     , avrISAWith
     , avrATtinyISA
     , avrATmegaISA
@@ -15,6 +18,9 @@ module AVR.ISA
     ) where
 
 import Prelude hiding (Word)
+import Data.Proxy (Proxy(..))
+import GHC.TypeLits (natVal)
+import Control.Monad (when)
 
 import Hdl.Bits
 import Isacle.ISA
@@ -64,18 +70,44 @@ avrExtInstrs :: AVR m pcW => [m ()]
 avrExtInstrs = [ instrJMP, instrCALL, instrLDS, instrSTS ]
 
 -- ---------------------------------------------------------------------------
+-- Interrupt body
+-- ---------------------------------------------------------------------------
+
+-- | AVR interrupt service entry sequence.
+-- Saves PC bytes to the stack, clears the I flag, then jumps to the
+-- externally-supplied vector address.  A third byte is pushed for 22-bit PCs.
+avrIrqBody :: forall m pcW. (AVR m pcW, MonadIRQ m, KnownNat (IrqAddrW m)) => m ()
+avrIrqBody = do
+    irqGate (readFlag avrFlagI)
+    spR <- cpu avrSP
+    pcR <- cpu avrPC
+    pc  <- readReg pcR
+    eight <- litC 8
+    lo    <- resizeBits pc
+    push spR lo
+    hiRaw <- aluOp PShiftR pc eight
+    hi    <- resizeBits hiRaw
+    push spR hi
+    when (fromIntegral (natVal (Proxy @pcW)) > (16 :: Int)) $ do
+        sixteen <- litC 16
+        topRaw  <- aluOp PShiftR pc sixteen
+        tb      <- resizeBits topRaw
+        push spR tb
+    writeFlag avrFlagI 0
+    vec    <- irqVector
+    vecPcW <- resizeBits vec
+    writeReg pcR vecPcW
+
+-- ---------------------------------------------------------------------------
 -- ISADef builder and per-variant ISA definitions
 -- ---------------------------------------------------------------------------
 
 -- | Assemble an ISADef from a caller-supplied instruction list.
-avrISAWith :: AVR m pcW => [m ()] -> ISADef m
+avrISAWith :: (AVR m pcW, MonadIRQ m, KnownNat (IrqAddrW m)) => [m ()] -> ISADef m
 avrISAWith instrs = defineISA ISADef
-    { isaPc           = SomeCPURegister <$> cpu avrPC
-    , isaInterruptEn  = cpu avrFlagI
-    , isaInterruptVec = SomeCPURegister <$> cpu avrPC
-    , isaContextSave  = [ saveWordReg avrPC, saveWordReg avrSP ]
-    , isaSupervisor   = Nothing
-    , isaReset        = do
+    { isaPc            = SomeCPURegister <$> cpu avrPC
+    , isaInterruptBody = Just avrIrqBody
+    , isaReset         = do
         resetReg  avrPC 0x0000
         resetReg  avrSP 0x09FF  -- top of 2 KB SRAM (0x0200–0x09FF)
         resetFlag avrFlagC Lo
@@ -90,13 +122,13 @@ avrISAWith instrs = defineISA ISADef
     }
 
 -- | ATtiny — 16-bit PC, core instructions only (no multiply, no 32-bit ops).
-avrATtinyISA :: AVR m 16 => ISADef m
+avrATtinyISA :: (AVR m 16, MonadIRQ m, KnownNat (IrqAddrW m)) => ISADef m
 avrATtinyISA = avrISAWith avrCoreInstrs
 
 -- | ATmega — 16-bit PC, full instruction set including multiply and 32-bit ops.
-avrATmegaISA :: AVR m 16 => ISADef m
+avrATmegaISA :: (AVR m 16, MonadIRQ m, KnownNat (IrqAddrW m)) => ISADef m
 avrATmegaISA = avrISAWith (avrCoreInstrs ++ avrMulInstrs ++ avrExtInstrs)
 
 -- | ATxmega / large AVR — 22-bit PC, full instruction set.
-avrATxmegaISA :: AVR m 22 => ISADef m
+avrATxmegaISA :: (AVR m 22, MonadIRQ m, KnownNat (IrqAddrW m)) => ISADef m
 avrATxmegaISA = avrISAWith (avrCoreInstrs ++ avrMulInstrs ++ avrExtInstrs)

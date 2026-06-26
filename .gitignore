@@ -32,6 +32,13 @@ cabal.project.local
 # Clash-generated VHDL (regenerate with: cabal run clash -- Example.Project --vhdl)
 vhdl/
 
+# Generated synthesis/sim outputs (emitted VHDL, GHDL work libs, waveforms).
+# Hand-written testbenches live in tests/ghdl/ and sim/ and ARE tracked.
+build/
+work-obj08.cf
+*.cf
+*.vcd
+
 # GHDL compilation work directory (regenerate with: make -C sim)
 sim/work/
 

@@ -5,7 +5,7 @@ module AVR.ISA.Branch where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
 import Isacle.ISA
 import AVR.ISA.Types
 
@@ -46,16 +46,16 @@ instrPOP = do
 -- ---------------------------------------------------------------------------
 
 -- | Push a pcW-wide return address onto the stack (hi byte first, AVR convention).
-pushRetAddr :: AVR m pcW => Unsigned pcW -> m ()
+pushRetAddr :: AVR m pcW => IExpr pcW -> m ()
 pushRetAddr ret = do
     spR   <- cpu avrSP
     spV   <- readReg spR
     eight <- litC 8
-    retHi <- aluOp PShiftR (zeroExtend ret :: Unsigned 16) eight
-    writeMem spV (truncateB retHi :: Unsigned 8)
+    retHi <- aluOp PShiftR (zeroExtend ret :: IExpr 16) eight
+    writeMem spV (truncateB retHi :: IExpr 8)
     one   <- litC 1
     spV1  <- aluOp PSub spV one
-    writeMem spV1 (truncateB ret :: Unsigned 8)
+    writeMem spV1 (truncateB ret :: IExpr 8)
     spV2  <- aluOp PSub spV1 one
     writeReg spR spV2
 
@@ -71,8 +71,8 @@ retFromStack = do
     hi   <- readMem spV2
     writeReg spR spV2
     eight <- litC 8
-    hiW   <- aluOp PShiftL (zeroExtend hi :: Unsigned 16) eight
-    ret   <- aluOp POr (zeroExtend lo :: Unsigned 16) hiW
+    hiW   <- aluOp PShiftL (zeroExtend hi :: IExpr 16) eight
+    ret   <- aluOp POr (zeroExtend lo :: IExpr 16) hiW
     pcR   <- cpu avrPC
     writeReg pcR (zeroExtend ret)
 
@@ -138,15 +138,15 @@ instrBRBS = do
     encoding "1111_00kk_kkkk_ksss"
     pcR    <- cpu avrPC
     p      <- readReg pcR
-    k7     <- (immediate "kkkkkkk" :: m (Unsigned 7))
+    k7     <- (immediate "kkkkkkk" :: m (IExpr 7))
     pcOne  <- litC 1
     p1     <- aluOp PAdd p pcOne
     k      <- signExtendBits k7
     target <- aluOp PAdd p1 k
-    sss    <- (immediate "sss" :: m (Unsigned 3))
+    sss    <- (immediate "sss" :: m (IExpr 3))
     sregR  <- cpu avrSREG
     sreg   <- readReg sregR
-    let Unsigned sssId = sss; sss8 = Unsigned sssId :: Unsigned 8
+    let sss8 = zeroExtend sss :: IExpr 8
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
     masked  <- aluOp PAnd shifted one8
@@ -159,15 +159,15 @@ instrBRBC = do
     encoding "1111_01kk_kkkk_ksss"
     pcR    <- cpu avrPC
     p      <- readReg pcR
-    k7     <- (immediate "kkkkkkk" :: m (Unsigned 7))
+    k7     <- (immediate "kkkkkkk" :: m (IExpr 7))
     pcOne  <- litC 1
     p1     <- aluOp PAdd p pcOne
     k      <- signExtendBits k7
     target <- aluOp PAdd p1 k
-    sss    <- (immediate "sss" :: m (Unsigned 3))
+    sss    <- (immediate "sss" :: m (IExpr 3))
     sregR  <- cpu avrSREG
     sreg   <- readReg sregR
-    let Unsigned sssId = sss; sss8 = Unsigned sssId :: Unsigned 8
+    let sss8 = zeroExtend sss :: IExpr 8
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
     masked  <- aluOp PAnd shifted one8

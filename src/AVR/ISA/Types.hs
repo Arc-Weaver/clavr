@@ -12,7 +12,7 @@ module AVR.ISA.Types
 
 import Prelude hiding (Word)
 
-import Hdl.Bits hiding ((!!))
+import Hdl.Bits hiding ((!!), zeroExtend, signExtend, truncateB, bitCoerce, slice)
 import Isacle.ISA
 import Isacle.ISA.Types (CPURegister(..))
 
@@ -84,8 +84,8 @@ avrCPUDef = do
 
 type AVR m pcW = ( MonadHarvardALU m, AluDef m ~ AVRALU pcW
                  , KnownNat pcW
-                 , Word m ~ Unsigned 8, DataAddr m ~ Unsigned 16
-                 , CodeAddr m ~ Unsigned pcW, CodeWord m ~ Unsigned 16 )
+                 , Word m ~ IExpr 8, DataAddr m ~ IExpr 16
+                 , CodeAddr m ~ IExpr pcW, CodeWord m ~ IExpr 16 )
 
 -- ---------------------------------------------------------------------------
 -- Helpers

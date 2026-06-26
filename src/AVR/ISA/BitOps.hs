@@ -16,8 +16,13 @@ instrBSET :: AVR m pcW => m ()
 instrBSET = do
     mnemonic "BSET"
     encoding "1001_0100_0sss_1000"
-    -- Synthesis stub: dynamic flag-by-index (sss) is a runtime field, not a
-    -- static CPUFlag — needs a dynamic SREG bit-set; left as a follow-up.
+    -- SREG[sss] := 1, where sss is a runtime field:  SREG <- SREG | (1 << sss)
+    s     <- immediate "sss"
+    sregR <- cpu avrSREG
+    sreg  <- readReg sregR
+    one   <- litC 1
+    mask  <- aluOp PShiftL one (zeroExtend (s :: IExpr 3) :: IExpr 8)
+    writeReg sregR =<< aluOp POr sreg mask
     pcAdvance
 
 -- BCLR s — 1001_0100_1sss_1000
@@ -25,7 +30,14 @@ instrBCLR :: AVR m pcW => m ()
 instrBCLR = do
     mnemonic "BCLR"
     encoding "1001_0100_1sss_1000"
-    -- Synthesis stub: dynamic flag-by-index (sss); see instrBSET.
+    -- SREG[sss] := 0:  SREG <- SREG & ~(1 << sss)
+    s       <- immediate "sss"
+    sregR   <- cpu avrSREG
+    sreg    <- readReg sregR
+    one     <- litC 1
+    mask    <- aluOp PShiftL one (zeroExtend (s :: IExpr 3) :: IExpr 8)
+    notMask <- aluOp PNot mask one        -- second operand ignored (PNot is unary)
+    writeReg sregR =<< aluOp PAnd sreg notMask
     pcAdvance
 
 -- BST Rd, b — 1111_101d_dddd_0bbb

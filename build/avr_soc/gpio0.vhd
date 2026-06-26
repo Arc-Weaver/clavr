@@ -6,10 +6,10 @@ entity gpio0 is
   port (
     dom10mhz : in std_logic;
     rst : in std_logic;
-    wr_addr : in unsigned(31 downto 0);
-    wr_data : in unsigned(7 downto 0);
-    wr_en : in std_logic;
-    rd_addr : in unsigned(31 downto 0);
+    req : in std_logic;
+    we : in std_logic;
+    addr : in unsigned(31 downto 0);
+    wdata : in unsigned(7 downto 0);
     rd_data : out unsigned(7 downto 0);
     GpioPhys_gpioPort : out unsigned(7 downto 0);
     GpioPhys_gpioDdr : out unsigned(7 downto 0)
@@ -37,15 +37,15 @@ architecture rtl of gpio0 is
   signal w21 : unsigned(7 downto 0);
   signal w22 : unsigned(7 downto 0);
 begin
-  w5 <= '1' when rd_addr = C_98_32 else '0';
-  w6 <= '1' when wr_addr = C_98_32 else '0';
-  w7 <= wr_en and w6;
-  w9 <= wr_data when w7 = '1' else port_s;
-  w11 <= '1' when rd_addr = C_97_32 else '0';
-  w12 <= '1' when wr_addr = C_97_32 else '0';
-  w13 <= wr_en and w12;
-  w15 <= wr_data when w13 = '1' else ddr;
-  w17 <= '1' when rd_addr = C_96_32 else '0';
+  w5 <= '1' when addr = C_98_32 else '0';
+  w6 <= we and w5;
+  w7 <= req and w6;
+  w9 <= wdata when w7 = '1' else port_s;
+  w11 <= '1' when addr = C_97_32 else '0';
+  w12 <= we and w11;
+  w13 <= req and w12;
+  w15 <= wdata when w13 = '1' else ddr;
+  w17 <= '1' when addr = C_96_32 else '0';
   w20 <= C_0_8 when w17 = '1' else C_0_8;
   w21 <= w15 when w11 = '1' else w20;
   w22 <= w9 when w5 = '1' else w21;
@@ -59,10 +59,10 @@ begin
       port_s <= to_unsigned(0, 8);
     elsif rising_edge(dom10mhz) then
       if w13 = '1' then
-        ddr <= wr_data;
+        ddr <= wdata;
       end if;
       if w7 = '1' then
-        port_s <= wr_data;
+        port_s <= wdata;
       end if;
     end if;
   end process;

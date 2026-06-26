@@ -6,10 +6,10 @@ entity ram0 is
   port (
     dom10mhz : in std_logic;
     rst : in std_logic;
-    wr_addr : in unsigned(31 downto 0);
-    wr_data : in unsigned(7 downto 0);
-    wr_en : in std_logic;
-    rd_addr : in unsigned(31 downto 0);
+    req : in std_logic;
+    we : in std_logic;
+    addr : in unsigned(31 downto 0);
+    wdata : in unsigned(7 downto 0);
     rd_data : out unsigned(7 downto 0)
   );
 end entity ram0;
@@ -25,24 +25,22 @@ architecture rtl of ram0 is
   signal w7 : std_logic;
   signal w8 : unsigned(7 downto 0);
   signal w10 : unsigned(7 downto 0);
-  signal w11 : unsigned(31 downto 0);
+  signal w11 : std_logic;
   signal w12 : std_logic;
-  signal w13 : std_logic;
 begin
-  w5 <= rd_addr - C_512_32;
+  w5 <= addr - C_512_32;
   w7 <= '1' when w5 < C_2048_32 else '0';
   w10 <= w8 when w7 = '1' else C_0_8;
   rd_data <= w10;
-  w11 <= wr_addr - C_512_32;
-  w12 <= '1' when w11 < C_2048_32 else '0';
-  w13 <= wr_en and w12;
+  w11 <= req and we;
+  w12 <= w11 and w7;
   w8 <= ram_8(to_integer(resize(w5, 11))) when not is_x(w5) else (others => '0');
   process(dom10mhz, rst)
   begin
     if rst = '1' then
     elsif rising_edge(dom10mhz) then
-      if w13 = '1' then
-        ram_8(to_integer(w11)) <= wr_data;
+      if w12 = '1' then
+        ram_8(to_integer(w5)) <= wdata;
       end if;
     end if;
   end process;

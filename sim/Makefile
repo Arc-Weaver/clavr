@@ -7,11 +7,13 @@ BUILDDIR := ../build/avr_soc
 SRCS := \
     $(BUILDDIR)/isacle_ram_32x8.vhd    \
     $(BUILDDIR)/isacle_ram_2048x8.vhd  \
+    $(BUILDDIR)/isacle_ram_16384x8.vhd \
     $(BUILDDIR)/isacle_rom_16x16.vhd   \
     $(BUILDDIR)/uart0.vhd              \
     $(BUILDDIR)/timer0.vhd             \
     $(BUILDDIR)/gpio0.vhd              \
     $(BUILDDIR)/ram0.vhd               \
+    $(BUILDDIR)/cpu.vhd                \
     $(BUILDDIR)/databus.vhd            \
     $(BUILDDIR)/avr_soc.vhd            \
     tb_avr_soc.vhdl

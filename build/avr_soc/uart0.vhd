@@ -6,10 +6,10 @@ entity uart0 is
   port (
     dom10mhz : in std_logic;
     rst : in std_logic;
-    wr_addr : in unsigned(31 downto 0);
-    wr_data : in unsigned(7 downto 0);
-    wr_en : in std_logic;
-    rd_addr : in unsigned(31 downto 0);
+    req : in std_logic;
+    we : in std_logic;
+    addr : in unsigned(31 downto 0);
+    wdata : in unsigned(7 downto 0);
     rd_data : out unsigned(7 downto 0);
     UartPhys_uartTxLine : out std_logic;
     UartPhys_uartRxIrq : out std_logic;
@@ -144,16 +144,16 @@ architecture rtl of uart0 is
   signal w190 : unsigned(7 downto 0);
   signal w191 : unsigned(7 downto 0);
 begin
-  w5 <= '1' when rd_addr = C_66_32 else '0';
-  w6 <= '1' when wr_addr = C_66_32 else '0';
-  w7 <= wr_en and w6;
-  w9 <= wr_data when w7 = '1' else ubrr;
-  w11 <= '1' when rd_addr = C_65_32 else '0';
+  w5 <= '1' when addr = C_66_32 else '0';
+  w6 <= we and w5;
+  w7 <= req and w6;
+  w9 <= wdata when w7 = '1' else ubrr;
+  w11 <= '1' when addr = C_65_32 else '0';
   w13 <= not w12;
   w16 <= C_1_8 when w13 = '1' else C_0_8;
   w20 <= C_2_8 when r_UartPhys_uartRxIrq = '1' else C_0_8;
   w21 <= w16 or w20;
-  w23 <= '1' when rd_addr = C_64_32 else '0';
+  w23 <= '1' when addr = C_64_32 else '0';
   w26 <= w24 when w23 = '1' else C_0_8;
   w27 <= w21 when w11 = '1' else w26;
   w28 <= w9 when w5 = '1' else w27;
@@ -168,8 +168,8 @@ begin
   UartPhys_uartTxLine <= w42;
   UartPhys_uartRxIrq <= r_UartPhys_uartRxIrq;
   UartPhys_uartTxIrq <= w13;
-  w43 <= '1' when wr_addr = C_64_32 else '0';
-  w44 <= wr_en and w43;
+  w43 <= we and w23;
+  w44 <= req and w43;
   w46 <= '1' when w29 = C_0_16 else '0';
   w47 <= w46 and w12;
   w48 <= C_0_1 when w47 = '1' else w12;
@@ -237,7 +237,7 @@ begin
   w186 <= w47 or w185;
   w187 <= w74 + C_1_16;
   w188 <= C_0_16 when w186 = '1' else w187;
-  w190 <= wr_data when w44 = '1' else udr;
+  w190 <= wdata when w44 = '1' else udr;
   w191 <= w190 when w44 = '1' else w97;
   process(dom10mhz, rst)
   begin
@@ -258,7 +258,7 @@ begin
       ubrr <= to_unsigned(0, 8);
     elsif rising_edge(dom10mhz) then
       if w44 = '1' then
-        udr <= wr_data;
+        udr <= wdata;
       end if;
       w97 <= w191;
       w74 <= w188;
@@ -273,7 +273,7 @@ begin
       r_UartPhys_uartRxIrq <= w65;
       w12 <= w49;
       if w7 = '1' then
-        ubrr <= wr_data;
+        ubrr <= wdata;
       end if;
     end if;
   end process;

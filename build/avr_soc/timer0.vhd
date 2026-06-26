@@ -6,10 +6,10 @@ entity timer0 is
   port (
     dom10mhz : in std_logic;
     rst : in std_logic;
-    wr_addr : in unsigned(31 downto 0);
-    wr_data : in unsigned(7 downto 0);
-    wr_en : in std_logic;
-    rd_addr : in unsigned(31 downto 0);
+    req : in std_logic;
+    we : in std_logic;
+    addr : in unsigned(31 downto 0);
+    wdata : in unsigned(7 downto 0);
     rd_data : out unsigned(7 downto 0);
     TimerPhys_timerOvfIrq : out std_logic;
     TimerPhys_timerCmpIrq : out std_logic
@@ -63,15 +63,15 @@ architecture rtl of timer0 is
   signal w47 : unsigned(7 downto 0);
   signal w48 : unsigned(7 downto 0);
 begin
-  w5 <= '1' when rd_addr = C_82_32 else '0';
-  w6 <= '1' when wr_addr = C_82_32 else '0';
-  w7 <= wr_en and w6;
-  w9 <= wr_data when w7 = '1' else ocr;
-  w11 <= '1' when rd_addr = C_81_32 else '0';
-  w14 <= '1' when rd_addr = C_80_32 else '0';
-  w15 <= '1' when wr_addr = C_80_32 else '0';
-  w16 <= wr_en and w15;
-  w18 <= wr_data when w16 = '1' else tccr;
+  w5 <= '1' when addr = C_82_32 else '0';
+  w6 <= we and w5;
+  w7 <= req and w6;
+  w9 <= wdata when w7 = '1' else ocr;
+  w11 <= '1' when addr = C_81_32 else '0';
+  w14 <= '1' when addr = C_80_32 else '0';
+  w15 <= we and w14;
+  w16 <= req and w15;
+  w18 <= wdata when w16 = '1' else tccr;
   w20 <= w18 when w14 = '1' else C_0_8;
   w21 <= w12 when w11 = '1' else w20;
   w22 <= w9 when w5 = '1' else w21;
@@ -79,8 +79,8 @@ begin
   w24 <= w18(0);
   w25 <= not w24;
   w27 <= '1' when w12 = C_255_8 else '0';
-  w28 <= '1' when wr_addr = C_81_32 else '0';
-  w29 <= wr_en and w28;
+  w28 <= we and w11;
+  w29 <= req and w28;
   w30 <= not w29;
   w31 <= w27 and w30;
   w32 <= w25 and w31;
@@ -91,7 +91,7 @@ begin
   w37 <= C_0_1 and w36;
   TimerPhys_timerOvfIrq <= w33;
   TimerPhys_timerCmpIrq <= w37;
-  w39 <= wr_data when w29 = '1' else tcnt;
+  w39 <= wdata when w29 = '1' else tcnt;
   w40 <= w24 and w34;
   w42 <= w25 and w27;
   w44 <= w12 + C_1_8;
@@ -108,14 +108,14 @@ begin
       ocr <= to_unsigned(0, 8);
     elsif rising_edge(dom10mhz) then
       if w29 = '1' then
-        tcnt <= wr_data;
+        tcnt <= wdata;
       end if;
       if w16 = '1' then
-        tccr <= wr_data;
+        tccr <= wdata;
       end if;
       w12 <= w48;
       if w7 = '1' then
-        ocr <= wr_data;
+        ocr <= wdata;
       end if;
     end if;
   end process;

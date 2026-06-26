@@ -3,7 +3,7 @@ module AVR.ISA.Mem where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
 import Isacle.ISA
 import AVR.ISA.Types
 

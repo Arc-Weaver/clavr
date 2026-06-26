@@ -1,0 +1,37 @@
+v 4
+file / "/tmp/claude-1000/-home-binaryblade-hardware/1693f87a-fa6e-4b90-ba0f-ba11db0f6be7/scratchpad/soc_tb.vhd" "eabd605096e7a54d3e2cd9608ac4bfb99ee705e6" "20260624233740.674":
+  entity soc_tb at 1( 0) + 0 on 113;
+  architecture sim of soc_tb at 3( 105) + 0 on 114;
+file / "/tmp/claude-1000/-home-binaryblade-hardware/1693f87a-fa6e-4b90-ba0f-ba11db0f6be7/scratchpad/cpu_tb.vhd" "6880eac638d88868c630fcd37e2ba2e5a4b8013e" "20260624233723.644":
+  entity cpu_tb at 1( 0) + 0 on 109;
+  architecture sim of cpu_tb at 3( 105) + 0 on 110;
+file . "build/avr_soc/cpu.vhd" "88b3550cbc2ebb66a0232c5b23d2333175092861" "20260625012135.488":
+  entity cpu at 1( 0) + 0 on 163;
+  architecture rtl of cpu at 21( 512) + 0 on 164;
+file . "build/avr_soc/uart0.vhd" "8cd411e3fa3806ef2a1d137494d7d2c20ad91883" "20260625012135.488":
+  entity uart0 at 1( 0) + 0 on 165;
+  architecture rtl of uart0 at 21( 478) + 0 on 166;
+file . "build/avr_soc/timer0.vhd" "57421a10d851f122185c368a04ece0175e6e760e" "20260625012135.489":
+  entity timer0 at 1( 0) + 0 on 167;
+  architecture rtl of timer0 at 20( 445) + 0 on 168;
+file . "build/avr_soc/gpio0.vhd" "349bc718d10fde11f396576afd047fe4267d961e" "20260625012135.489":
+  entity gpio0 at 1( 0) + 0 on 169;
+  architecture rtl of gpio0 at 20( 456) + 0 on 170;
+file . "build/avr_soc/ram0.vhd" "ba71faf69a01c2d4ebd5dc5b73ee3f20521c45f8" "20260625012135.494":
+  entity ram0 at 1( 0) + 0 on 171;
+  architecture rtl of ram0 at 18( 355) + 0 on 172;
+file . "build/avr_soc/databus.vhd" "fef5cc119332bbbe7311f27f0357d661bc9e571c" "20260625012135.494":
+  entity databus at 1( 0) + 0 on 173;
+  architecture rtl of databus at 24( 620) + 0 on 174;
+file . "build/avr_soc/avr_soc.vhd" "f33ec04590c330692139267abfb59d5b75cb74bd" "20260625012135.824":
+  entity avr_soc at 1( 0) + 0 on 175;
+  architecture rtl of avr_soc at 22( 609) + 0 on 176;
+file . "tests/ghdl/avr_soc_tb.vhd" "a41c3982584cc02d39de978363513e60abb86136" "20260625012135.825":
+  entity avr_soc_tb at 1( 0) + 0 on 177;
+  architecture sim of avr_soc_tb at 8( 115) + 0 on 178;
+file / "/tmp/claude-1000/-home-binaryblade-hardware/1693f87a-fa6e-4b90-ba0f-ba11db0f6be7/scratchpad/min_tb.vhd" "1e6373fa2aeb9c384cda81427c68b600f7f05985" "20260624233529.029":
+  entity min_tb at 1( 0) + 0 on 107;
+  architecture sim of min_tb at 8( 107) + 0 on 108;
+file / "/tmp/claude-1000/-home-binaryblade-hardware/1693f87a-fa6e-4b90-ba0f-ba11db0f6be7/scratchpad/uart_tb2.vhd" "9224fd4ea4d88af490c73def57a271c93b45bdb6" "20260624233732.732":
+  entity uart_tb2 at 1( 0) + 0 on 111;
+  architecture sim of uart_tb2 at 3( 109) + 0 on 112;

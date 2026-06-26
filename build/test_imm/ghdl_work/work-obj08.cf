@@ -1,0 +1,25 @@
+v 4
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/cpu.vhd" "57696f1d86a6e3527a4a594a32ecd6f45a46ec7b" "20260625060824.678":
+  entity cpu at 1( 0) + 0 on 187;
+  architecture rtl of cpu at 21( 512) + 0 on 188;
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/uart0.vhd" "8cd411e3fa3806ef2a1d137494d7d2c20ad91883" "20260625060824.679":
+  entity uart0 at 1( 0) + 0 on 189;
+  architecture rtl of uart0 at 21( 478) + 0 on 190;
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/timer0.vhd" "57421a10d851f122185c368a04ece0175e6e760e" "20260625060824.680":
+  entity timer0 at 1( 0) + 0 on 191;
+  architecture rtl of timer0 at 20( 445) + 0 on 192;
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/gpio0.vhd" "349bc718d10fde11f396576afd047fe4267d961e" "20260625060824.680":
+  entity gpio0 at 1( 0) + 0 on 193;
+  architecture rtl of gpio0 at 20( 456) + 0 on 194;
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/ram0.vhd" "ba71faf69a01c2d4ebd5dc5b73ee3f20521c45f8" "20260625060824.685":
+  entity ram0 at 1( 0) + 0 on 195;
+  architecture rtl of ram0 at 18( 355) + 0 on 196;
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/databus.vhd" "fef5cc119332bbbe7311f27f0357d661bc9e571c" "20260625060824.686":
+  entity databus at 1( 0) + 0 on 197;
+  architecture rtl of databus at 24( 620) + 0 on 198;
+file "/home/binaryblade/hardware/clavr/" "build/test_imm/avr_soc.vhd" "3c97a8a47f278bc6991197e523ed712fbac58694" "20260625060825.015":
+  entity avr_soc at 1( 0) + 0 on 199;
+  architecture rtl of avr_soc at 22( 609) + 0 on 200;
+file "/home/binaryblade/hardware/clavr/" "tests/ghdl/imm_tb.vhd" "59f723ffbe747e8a2f0eca1e8e3608e9e9019947" "20260625060825.016":
+  entity imm_tb at 11( 366) + 0 on 201;
+  architecture sim of imm_tb at 18( 473) + 0 on 202;

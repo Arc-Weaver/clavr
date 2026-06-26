@@ -4,7 +4,7 @@ module AVR.ISA.Arith where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
 import Isacle.ISA
 import Isacle.ISA.Types (CPURegister(..))
 import AVR.ISA.Types
@@ -191,7 +191,7 @@ instrLDI = do
     encoding "1110_KKKK_dddd_KKKK"
     dst <- registerWithOffset avrGPR "dddd" 16
     k   <- immediate "KKKKKKKK"
-    writeReg dst (k :: Unsigned 8)
+    writeReg dst (k :: IExpr 8)
     pcAdvance
 
 -- SUBI Rd, K — 0101_KKKK_dddd_KKKK
@@ -202,7 +202,7 @@ instrSUBI = do
     dst <- registerWithOffset avrGPR "dddd" 16
     k   <- immediate "KKKKKKKK"
     a   <- readReg dst
-    r   <- aluOp PSub a (k :: Unsigned 8)
+    r   <- aluOp PSub a (k :: IExpr 8)
     writeReg dst r
     stubArith
     pcAdvance
@@ -215,7 +215,7 @@ instrSBCI = do
     dst <- registerWithOffset avrGPR "dddd" 16
     k   <- immediate "KKKKKKKK"
     a   <- readReg dst
-    r   <- aluOp PSub a (k :: Unsigned 8)
+    r   <- aluOp PSub a (k :: IExpr 8)
     writeReg dst r
     stubArith
     pcAdvance
@@ -228,7 +228,7 @@ instrANDI = do
     dst <- registerWithOffset avrGPR "dddd" 16
     k   <- immediate "KKKKKKKK"
     a   <- readReg dst
-    r   <- aluOp PAnd a (k :: Unsigned 8)
+    r   <- aluOp PAnd a (k :: IExpr 8)
     writeReg dst r
     stubArith
     pcAdvance
@@ -241,7 +241,7 @@ instrORI = do
     dst <- registerWithOffset avrGPR "dddd" 16
     k   <- immediate "KKKKKKKK"
     a   <- readReg dst
-    r   <- aluOp POr a (k :: Unsigned 8)
+    r   <- aluOp POr a (k :: IExpr 8)
     writeReg dst r
     stubArith
     pcAdvance
@@ -254,7 +254,7 @@ instrCPI = do
     dst <- registerWithOffset avrGPR "dddd" 16
     k   <- immediate "KKKKKKKK"
     a   <- readReg dst
-    _r  <- aluOp PSub a (k :: Unsigned 8)
+    _r  <- aluOp PSub a (k :: IExpr 8)
     stubArith
     pcAdvance
 
@@ -405,7 +405,7 @@ instrADIW = do
     lo  <- registerWithOffset avrGPR "dd" 24
     k   <- immediate "KKKKKK"
     a   <- readReg lo
-    r   <- aluOp PAdd a (k :: Unsigned 8)
+    r   <- aluOp PAdd a (k :: IExpr 8)
     writeReg lo r
     stubArith
     pcAdvance
@@ -417,7 +417,7 @@ instrSBIW = do
     lo  <- registerWithOffset avrGPR "dd" 24
     k   <- immediate "KKKKKK"
     a   <- readReg lo
-    r   <- aluOp PSub a (k :: Unsigned 8)
+    r   <- aluOp PSub a (k :: IExpr 8)
     writeReg lo r
     stubArith
     pcAdvance

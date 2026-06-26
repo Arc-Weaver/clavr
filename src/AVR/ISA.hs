@@ -22,7 +22,7 @@ import Data.Proxy (Proxy(..))
 import GHC.TypeLits (natVal)
 import Control.Monad (when)
 
-import Hdl.Bits
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
 import Isacle.ISA
 import AVR.ISA.Types
 import AVR.ISA.Arith

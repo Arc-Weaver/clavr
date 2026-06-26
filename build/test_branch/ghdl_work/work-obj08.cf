@@ -1,0 +1,25 @@
+v 4
+file "/home/binaryblade/hardware/clavr/" "tests/ghdl/branch_tb.vhd" "200332744323e505aefb1129a1954671899c4c1c" "20260625060820.905":
+  entity branch_tb at 9( 310) + 0 on 281;
+  architecture sim of branch_tb at 16( 423) + 0 on 282;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/avr_soc.vhd" "241c6c6912b4ef96bee59a101bbbb88819366fef" "20260625060820.904":
+  entity avr_soc at 1( 0) + 0 on 279;
+  architecture rtl of avr_soc at 22( 609) + 0 on 280;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/databus.vhd" "fef5cc119332bbbe7311f27f0357d661bc9e571c" "20260625060820.579":
+  entity databus at 1( 0) + 0 on 277;
+  architecture rtl of databus at 24( 620) + 0 on 278;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/ram0.vhd" "ba71faf69a01c2d4ebd5dc5b73ee3f20521c45f8" "20260625060820.578":
+  entity ram0 at 1( 0) + 0 on 275;
+  architecture rtl of ram0 at 18( 355) + 0 on 276;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/gpio0.vhd" "349bc718d10fde11f396576afd047fe4267d961e" "20260625060820.573":
+  entity gpio0 at 1( 0) + 0 on 273;
+  architecture rtl of gpio0 at 20( 456) + 0 on 274;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/timer0.vhd" "57421a10d851f122185c368a04ece0175e6e760e" "20260625060820.573":
+  entity timer0 at 1( 0) + 0 on 271;
+  architecture rtl of timer0 at 20( 445) + 0 on 272;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/uart0.vhd" "8cd411e3fa3806ef2a1d137494d7d2c20ad91883" "20260625060820.573":
+  entity uart0 at 1( 0) + 0 on 269;
+  architecture rtl of uart0 at 21( 478) + 0 on 270;
+file "/home/binaryblade/hardware/clavr/" "build/test_branch/cpu.vhd" "57696f1d86a6e3527a4a594a32ecd6f45a46ec7b" "20260625060820.572":
+  entity cpu at 1( 0) + 0 on 267;
+  architecture rtl of cpu at 21( 512) + 0 on 268;

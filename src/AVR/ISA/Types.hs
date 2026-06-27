@@ -1,7 +1,11 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 module AVR.ISA.Types
     ( AVRALU(..)
+    , Sreg(..)
     , avrCPUDef
     , AVR
     , avrFlagAt
@@ -11,8 +15,10 @@ module AVR.ISA.Types
     ) where
 
 import Prelude hiding (Word)
+import GHC.Generics (Generic, Rep)
 
 import Hdl.Bits hiding ((!!), zeroExtend, signExtend, truncateB, bitCoerce, slice)
+import Hdl.Types (HdlType(..), GWidth, genericToBits, genericFromBits)
 import Isacle.ISA
 import Isacle.ISA.Types (CPURegister(..))
 
@@ -40,6 +46,30 @@ data AVRALU pcW = AVRALU
     }
 
 -- ---------------------------------------------------------------------------
+-- SREG as a bit-map record HdlType
+-- The status register's bit layout *is* this record's structure: declaration
+-- order is MSB-first, so sI occupies bit 7 … sC bit 0 (the AVR SREG layout).
+-- 'flagRec' derives each flag's bit position from it — no separate bit-index
+-- declaration (C2/C5).
+-- ---------------------------------------------------------------------------
+
+data Sreg = Sreg
+    { sI :: Bit   -- ^ bit 7 — global interrupt enable
+    , sT :: Bit   -- ^ bit 6 — bit copy / transfer
+    , sH :: Bit   -- ^ bit 5 — half carry
+    , sS :: Bit   -- ^ bit 4 — sign (N xor V)
+    , sV :: Bit   -- ^ bit 3 — two's-complement overflow
+    , sN :: Bit   -- ^ bit 2 — negative
+    , sZ :: Bit   -- ^ bit 1 — zero
+    , sC :: Bit   -- ^ bit 0 — carry
+    } deriving Generic
+
+instance HdlType Sreg where
+    type Width Sreg = GWidth (Rep Sreg)
+    toBits   = genericToBits
+    fromBits = genericFromBits
+
+-- ---------------------------------------------------------------------------
 -- CPUDef — parameterised over PC width via TypeApplications
 -- Usage: avrCPUDef @16  or  avrCPUDef @22
 -- ---------------------------------------------------------------------------
@@ -53,7 +83,9 @@ avrCPUDef = do
     x'      <- reg "X"   w16
     y'      <- reg "Y"   w16
     z'      <- reg "Z"   w16
-    (sreg, fs) <- flagPack @8 "SREG" ["I","T","H","S","V","N","Z","C"]
+    -- SREG and its flags derive from the Sreg record layout (MSB-first):
+    -- fs = [sI@7, sT@6, sH@5, sS@4, sV@3, sN@2, sZ@1, sC@0].
+    (sreg, fs) <- flagRec @Sreg "SREG"
     let i = fs!!0; t = fs!!1; h = fs!!2; s = fs!!3
         v = fs!!4; n = fs!!5; z = fs!!6; c = fs!!7
     aliasFile gpr' "0x00 + regIndex"

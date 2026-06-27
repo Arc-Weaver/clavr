@@ -19,12 +19,11 @@ instrPUSH = do
     mnemonic "PUSH"
     encoding "1001_001d_dddd_1111"
     src  <- register avrGPR "ddddd"
-    spR  <- cpu avrSP
-    spV  <- readReg spR
+    spV  <- readField @"sp"
     val  <- readReg src
     writeMem spV val
     one  <- litC 1
-    writeReg spR =<< aluOp PSub spV one
+    writeField @"sp" =<< aluOp PSub spV one
     pcAdvance
 
 -- POP Rd — 1001_000d_dddd_1111
@@ -33,11 +32,10 @@ instrPOP = do
     mnemonic "POP"
     encoding "1001_000d_dddd_1111"
     dst  <- register avrGPR "ddddd"
-    spR  <- cpu avrSP
-    spV  <- readReg spR
+    spV  <- readField @"sp"
     one  <- litC 1
     newSp <- aluOp PAdd spV one
-    writeReg spR newSp
+    writeField @"sp" newSp
     writeReg dst =<< readMem newSp
     pcAdvance
 
@@ -48,8 +46,7 @@ instrPOP = do
 -- | Push a pcW-wide return address onto the stack (hi byte first, AVR convention).
 pushRetAddr :: AVR m pcW => IExpr pcW -> m ()
 pushRetAddr ret = do
-    spR   <- cpu avrSP
-    spV   <- readReg spR
+    spV   <- readField @"sp"
     eight <- litC 8
     retHi <- aluOp PShiftR (zeroExtend ret :: IExpr 16) eight
     writeMem spV (truncateC retHi :: IExpr 8)   -- 8 <= 16, statically checked
@@ -57,19 +54,18 @@ pushRetAddr ret = do
     spV1  <- aluOp PSub spV one
     writeMem spV1 (truncateB ret :: IExpr 8)
     spV2  <- aluOp PSub spV1 one
-    writeReg spR spV2
+    writeField @"sp" spV2
 
 -- | Pop a 16-bit return address from the stack and jump to it.
 retFromStack :: AVR m pcW => m ()
 retFromStack = do
-    spR  <- cpu avrSP
-    spV  <- readReg spR
+    spV  <- readField @"sp"
     one  <- litC 1
     spV1 <- aluOp PAdd spV one
     lo   <- readMem spV1
     spV2 <- aluOp PAdd spV1 one
     hi   <- readMem spV2
-    writeReg spR spV2
+    writeField @"sp" spV2
     eight <- litC 8
     hiW   <- aluOp PShiftL (zeroExtendC hi :: IExpr 16) eight   -- Word m ~ IExpr 8, 8 <= 16
     ret   <- aluOp POr (zeroExtendC lo :: IExpr 16) hiW
@@ -148,8 +144,7 @@ instrBRBS = do
     k      <- signExtendBits k7
     target <- aluOp PAdd p1 k
     sss    <- (immediate "sss" :: m (IExpr 3))
-    sregR  <- cpu avrSREG
-    sreg   <- readReg sregR
+    sreg   <- readField @"sreg"
     let sss8 = zeroExtendC sss :: IExpr 8   -- 3 <= 8, statically checked
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
@@ -169,8 +164,7 @@ instrBRBC = do
     k      <- signExtendBits k7
     target <- aluOp PAdd p1 k
     sss    <- (immediate "sss" :: m (IExpr 3))
-    sregR  <- cpu avrSREG
-    sreg   <- readReg sregR
+    sreg   <- readField @"sreg"
     let sss8 = zeroExtendC sss :: IExpr 8   -- 3 <= 8, statically checked
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
@@ -209,8 +203,7 @@ instrIJMP = do
     mnemonic "IJMP"
     encoding "1001_0100_0000_1001"
     pcR <- cpu avrPC
-    zr  <- cpu avrZ
-    writeReg pcR . zeroExtend =<< readReg zr
+    writeReg pcR . zeroExtend =<< readField @"z"
 
 -- ICALL — 1001_0101_0000_1001
 instrICALL :: AVR m pcW => m ()
@@ -222,8 +215,7 @@ instrICALL = do
     one  <- litC 1
     ret  <- aluOp PAdd p one
     pushRetAddr ret
-    zr   <- cpu avrZ
-    writeReg pcR . zeroExtend =<< readReg zr
+    writeReg pcR . zeroExtend =<< readField @"z"
 
 -- NOP — 0000_0000_0000_0000
 instrNOP :: AVR m pcW => m ()

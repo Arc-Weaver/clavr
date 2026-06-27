@@ -19,10 +19,10 @@ instrBSET = do
     encoding "1001_0100_0sss_1000"
     -- SREG[sss] := 1, where sss is a runtime field:  SREG <- SREG | (1 << sss)
     s     <- immediate "sss"
-    sreg  <- readField @"sreg"
+    sreg  <- readField avrSREG
     one   <- litC 1
     mask  <- aluOp PShiftL one (zeroExtendC (s :: IExpr 3) :: IExpr 8)
-    writeField @"sreg" =<< aluOp POr sreg mask
+    writeField avrSREG =<< aluOp POr sreg mask
     pcAdvance
 
 -- BCLR s — 1001_0100_1sss_1000
@@ -32,11 +32,11 @@ instrBCLR = do
     encoding "1001_0100_1sss_1000"
     -- SREG[sss] := 0:  SREG <- SREG & ~(1 << sss)
     s       <- immediate "sss"
-    sreg    <- readField @"sreg"
+    sreg    <- readField avrSREG
     one     <- litC 1
     mask    <- aluOp PShiftL one (zeroExtendC (s :: IExpr 3) :: IExpr 8)
     notMask <- aluOp PNot mask one        -- second operand ignored (PNot is unary)
-    writeField @"sreg" =<< aluOp PAnd sreg notMask
+    writeField avrSREG =<< aluOp PAnd sreg notMask
     pcAdvance
 
 -- BST Rd, b — 1111_101d_dddd_0bbb

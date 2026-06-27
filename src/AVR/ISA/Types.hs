@@ -102,14 +102,6 @@ instance (KnownNat pcW, KnownNat (GWidth (Rep (AvrState pcW))))
     toBits   = genericToBits
     fromBits = genericFromBits
 
--- | The AVR core's handle record stands for the typed 'AvrState' record, so
--- 'readField'/'writeField' (from "Isacle.ISA") reach a scalar register by its
--- 'AvrState' field name with the width taken from the field's type.
---
--- > sreg <- readField @"sreg"          -- IExpr 8  (from the Sreg field)
--- > writeField @"pc" newPc             -- width = pcW (the pc field's width)
-type instance CoreState (AVRALU pcW) = AvrState pcW
-
 -- ---------------------------------------------------------------------------
 -- CPUDef — parameterised over PC width via TypeApplications
 -- Usage: avrCPUDef @16  or  avrCPUDef @22

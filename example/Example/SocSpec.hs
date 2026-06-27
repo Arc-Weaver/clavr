@@ -5,6 +5,7 @@
 --   0x0040 – 0x0042   UART  (UDR / USR / UBRR)
 --   0x0050 – 0x0052   Timer (TCCR / TCNT / OCR)
 --   0x0060 – 0x0062   GPIO Port A (PIN / DDR / PORT)
+--   0x0070 – 0x0072   Ramp  (SETPOINT / STEP / CURRENT, signed datapath)
 --   0x0200 – 0x09FF   2 KB SRAM
 --
 -- Code bus:
@@ -70,12 +71,14 @@ avrSocWith romWords = do
     uart0  <- createUart  "uart0"  sigFalse
     timer0 <- createTimer "timer0" sigFalse
     gpio0  <- createGpio  "gpio0"  0
+    ramp0  <- createRamp  "ramp0"  sigTrue   -- advance every cycle (demonstrator)
     ram0   <- createRam   2048 [] "ram0"
 
     ((uartOut, gpioOut), dataBus) <- createBus "databus" $ do
         uartOut'  <- attachPeripheral 0x0040 uart0
         _         <- attachPeripheral 0x0050 timer0
         gpioOut'  <- attachPeripheral 0x0060 gpio0
+        _         <- attachPeripheral 0x0070 ramp0
         _         <- attachPeripheral 0x0200 ram0
         return (uartOut', gpioOut')
 

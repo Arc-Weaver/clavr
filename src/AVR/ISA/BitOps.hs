@@ -21,7 +21,7 @@ instrBSET = do
     sregR <- cpu avrSREG
     sreg  <- readReg sregR
     one   <- litC 1
-    mask  <- aluOp PShiftL one (zeroExtend (s :: IExpr 3) :: IExpr 8)
+    mask  <- aluOp PShiftL one (zeroExtendC (s :: IExpr 3) :: IExpr 8)
     writeReg sregR =<< aluOp POr sreg mask
     pcAdvance
 
@@ -35,7 +35,7 @@ instrBCLR = do
     sregR   <- cpu avrSREG
     sreg    <- readReg sregR
     one     <- litC 1
-    mask    <- aluOp PShiftL one (zeroExtend (s :: IExpr 3) :: IExpr 8)
+    mask    <- aluOp PShiftL one (zeroExtendC (s :: IExpr 3) :: IExpr 8)
     notMask <- aluOp PNot mask one        -- second operand ignored (PNot is unary)
     writeReg sregR =<< aluOp PAnd sreg notMask
     pcAdvance
@@ -93,7 +93,7 @@ instrCBI = do
     encoding "1001_1000_AAAA_Abbb"
     a   <- immediate "AAAAA"
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtend (a :: IExpr 5) :: IExpr 16) ioBase
+    addr <- aluOp PAdd (zeroExtendC (a :: IExpr 5) :: IExpr 16) ioBase
     v   <- readMem addr
     writeMem addr v
     pcAdvance
@@ -105,7 +105,7 @@ instrSBI = do
     encoding "1001_1010_AAAA_Abbb"
     a   <- immediate "AAAAA"
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtend (a :: IExpr 5) :: IExpr 16) ioBase
+    addr <- aluOp PAdd (zeroExtendC (a :: IExpr 5) :: IExpr 16) ioBase
     v   <- readMem addr
     writeMem addr v
     pcAdvance
@@ -117,7 +117,7 @@ instrSBIC = do
     encoding "1001_1001_AAAA_Abbb"
     a    <- immediate "AAAAA"
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtend (a :: IExpr 5) :: IExpr 16) ioBase
+    addr <- aluOp PAdd (zeroExtendC (a :: IExpr 5) :: IExpr 16) ioBase
     _v   <- readMem addr
     pcAdvance
 
@@ -128,7 +128,7 @@ instrSBIS = do
     encoding "1001_1011_AAAA_Abbb"
     a    <- immediate "AAAAA"
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtend (a :: IExpr 5) :: IExpr 16) ioBase
+    addr <- aluOp PAdd (zeroExtendC (a :: IExpr 5) :: IExpr 16) ioBase
     _v   <- readMem addr
     pcAdvance
 
@@ -144,7 +144,7 @@ instrIN = do
     dst  <- register avrGPR "ddddd"
     a    <- immediate "AAAAAA"
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtend (a :: IExpr 6) :: IExpr 16) ioBase
+    addr <- aluOp PAdd (zeroExtendC (a :: IExpr 6) :: IExpr 16) ioBase
     v    <- readMem addr
     writeReg dst v
     pcAdvance
@@ -157,7 +157,7 @@ instrOUT = do
     src  <- register avrGPR "rrrrr"
     a    <- immediate "AAAAAA"
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtend (a :: IExpr 6) :: IExpr 16) ioBase
+    addr <- aluOp PAdd (zeroExtendC (a :: IExpr 6) :: IExpr 16) ioBase
     v    <- readReg src
     writeMem addr v
     pcAdvance

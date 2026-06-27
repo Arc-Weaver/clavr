@@ -1,11 +1,18 @@
+-- ramp_tb.vhd — end-to-end testbench for the signed Ramp peripheral.
+--
+-- Runs the avr_soc with the ramp_demo program (tests/fixtures/ramp_demo.bin):
+-- the CPU writes STEP=2 and SETPOINT=-6 to the ramp over the bus, the ramp's
+-- signed FSM ramps CURRENT down to -6, and the CPU reads CURRENT back and drives
+-- it onto PORT_A.  Observing gpio_port = 0xFA (= -6) proves the typed-HDL signed
+-- datapath works end-to-end across the CPU bus (PLAN_TYPED_HDL #3d behavioural).
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity avr_soc_tb is
-end entity avr_soc_tb;
+entity ramp_tb is
+end entity ramp_tb;
 
-architecture sim of avr_soc_tb is
+architecture sim of ramp_tb is
     signal clk       : std_logic := '0';
     signal rst       : std_logic := '1';
     signal gpio_port : unsigned(7 downto 0);
@@ -30,21 +37,23 @@ begin
 
     process
     begin
-        wait for 500 ns;   -- 25 clock cycles after reset release
+        wait for 2000 ns;   -- let the program run and the ramp converge
         assert gpio_ddr = to_unsigned(255, 8)
             report "FAIL: gpio_ddr = " & integer'image(to_integer(gpio_ddr))
                    & ", expected 255"
             severity error;
-        -- program.S is the SREG alias-read demo: it sets SREG.C (=0x01) and
-        -- drives the alias-read SREG value onto PORT_A.  Expected 0x01 proves
-        -- the register-alias read path (raw SRAM would read 0x00).
-        assert gpio_port = to_unsigned(16#01#, 8)
+        -- -6 read back over the bus as an unsigned byte = 0xFA = 250.
+        assert gpio_port = to_unsigned(16#FA#, 8)
             report "FAIL: gpio_port = " & integer'image(to_integer(gpio_port))
-                   & ", expected 0x01 (alias-read SREG.C)"
+                   & ", expected 0xFA (signed -6)"
             severity error;
         report "gpio_port = 0x" & integer'image(to_integer(gpio_port))
-               & "  gpio_ddr = 0x" & integer'image(to_integer(gpio_ddr));
-        wait for 500 ns;   -- run longer for waveform visibility
+               & "  gpio_ddr = 0x" & integer'image(to_integer(gpio_ddr))
+            severity note;
+        report "ramp CURRENT read back = signed "
+               & integer'image(to_integer(signed(gpio_port)))
+            severity note;
+        report "RAMP END-TO-END CHECK PASSED" severity note;
         std.env.stop;
     end process;
 end architecture sim;

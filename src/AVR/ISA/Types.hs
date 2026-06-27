@@ -10,6 +10,8 @@ module AVR.ISA.Types
     ( AVRALU(..)
     , Sreg(..)
     , AvrState(..)
+    , twoReg
+    , immReg
     , avrCPUDef
     , AVR
     , avrFlagAt
@@ -101,6 +103,32 @@ instance (KnownNat pcW, KnownNat (GWidth (Rep (AvrState pcW))))
     type Width (AvrState pcW) = GWidth (Rep (AvrState pcW))
     toBits   = genericToBits
     fromBits = genericFromBits
+
+-- | The common two-register AVR encoding shape @\<6 fixed bits\>rd_dddd_rrrr@:
+-- both Rd and Rr are 5-bit fields split as (high bit) + (low nibble). Returns
+-- @(Rd, Rr)@ placeholders. e.g. ADD is @twoReg "000011"@.
+twoReg :: String -> Encoding (Field (Unsigned 5), Field (Unsigned 5))
+twoReg pre = do
+    fixed pre
+    r <- placeholder @(Unsigned 5)
+    d <- placeholder @(Unsigned 5)
+    bindBits r 1            -- r high  (bit 9)
+    bindBits d 1            -- d high  (bit 8)
+    bindBits d 4            -- d low   (bits 7-4)
+    bindBits r 4            -- r low   (bits 3-0)
+    return (d, r)
+
+-- | The upper-register + 8-bit-immediate shape @\<4 fixed bits\>KKKK_dddd_KKKK@:
+-- the 8-bit immediate K is split (high nibble, low nibble) and Rd is a 4-bit
+-- field (used with offset 16 → R16–R31). Returns @(Rd4, K8)@.
+immReg :: String -> Encoding (Field (Unsigned 4), Field (Unsigned 8))
+immReg pre = do
+    fixed pre
+    k <- placeholder @(Unsigned 8)
+    bindBits k 4            -- K high nibble (bits 11-8)
+    d <- field @(Unsigned 4)  -- dddd (bits 7-4)
+    bindBits k 4            -- K low nibble (bits 3-0)
+    return (d, k)
 
 -- ---------------------------------------------------------------------------
 -- CPUDef — parameterised over PC width via TypeApplications

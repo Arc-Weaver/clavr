@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 module AVR.ISA.Mem where
 
 import Prelude hiding (Word)
@@ -17,8 +18,7 @@ instrLD_Z = do
     mnemonic "LD_Z"
     encoding "1000_000d_dddd_0000"
     dst  <- register avrGPR "ddddd"
-    zr   <- cpu avrZ
-    ptr  <- readReg zr
+    ptr  <- readField @"z"
     v    <- readMem ptr
     writeReg dst v
     pcAdvance
@@ -29,13 +29,12 @@ instrLD_Zplus = do
     mnemonic "LD_Zplus"
     encoding "1001_000d_dddd_0001"
     dst  <- register avrGPR "ddddd"
-    zr   <- cpu avrZ
-    ptr  <- readReg zr
+    ptr  <- readField @"z"
     v    <- readMem ptr
     writeReg dst v
     one <- litC 1
     ptr1 <- aluOp PAdd ptr one
-    writeReg zr ptr1
+    writeField @"z" ptr1
     pcAdvance
 
 -- LD Rd, -Z — 1001_000d_dddd_0010
@@ -44,11 +43,10 @@ instrLD_Zminus = do
     mnemonic "LD_Zminus"
     encoding "1001_000d_dddd_0010"
     dst  <- register avrGPR "ddddd"
-    zr   <- cpu avrZ
-    ptr  <- readReg zr
+    ptr  <- readField @"z"
     one <- litC 1
     ptr1 <- aluOp PSub ptr one
-    writeReg zr ptr1
+    writeField @"z" ptr1
     v    <- readMem ptr1
     writeReg dst v
     pcAdvance
@@ -59,8 +57,7 @@ instrLD_Y = do
     mnemonic "LD_Y"
     encoding "1000_000d_dddd_1000"
     dst  <- register avrGPR "ddddd"
-    yr   <- cpu avrY
-    ptr  <- readReg yr
+    ptr  <- readField @"y"
     v    <- readMem ptr
     writeReg dst v
     pcAdvance
@@ -71,13 +68,12 @@ instrLD_Yplus = do
     mnemonic "LD_Yplus"
     encoding "1001_000d_dddd_1001"
     dst  <- register avrGPR "ddddd"
-    yr   <- cpu avrY
-    ptr  <- readReg yr
+    ptr  <- readField @"y"
     v    <- readMem ptr
     writeReg dst v
     one <- litC 1
     ptr1 <- aluOp PAdd ptr one
-    writeReg yr ptr1
+    writeField @"y" ptr1
     pcAdvance
 
 -- LD Rd, -Y — 1001_000d_dddd_1010
@@ -86,11 +82,10 @@ instrLD_Yminus = do
     mnemonic "LD_Yminus"
     encoding "1001_000d_dddd_1010"
     dst  <- register avrGPR "ddddd"
-    yr   <- cpu avrY
-    ptr  <- readReg yr
+    ptr  <- readField @"y"
     one <- litC 1
     ptr1 <- aluOp PSub ptr one
-    writeReg yr ptr1
+    writeField @"y" ptr1
     v    <- readMem ptr1
     writeReg dst v
     pcAdvance
@@ -101,8 +96,7 @@ instrLD_X = do
     mnemonic "LD_X"
     encoding "1001_000d_dddd_1100"
     dst  <- register avrGPR "ddddd"
-    xr   <- cpu avrX
-    ptr  <- readReg xr
+    ptr  <- readField @"x"
     v    <- readMem ptr
     writeReg dst v
     pcAdvance
@@ -113,13 +107,12 @@ instrLD_Xplus = do
     mnemonic "LD_Xplus"
     encoding "1001_000d_dddd_1101"
     dst  <- register avrGPR "ddddd"
-    xr   <- cpu avrX
-    ptr  <- readReg xr
+    ptr  <- readField @"x"
     v    <- readMem ptr
     writeReg dst v
     one <- litC 1
     ptr1 <- aluOp PAdd ptr one
-    writeReg xr ptr1
+    writeField @"x" ptr1
     pcAdvance
 
 -- LD Rd, -X — 1001_000d_dddd_1110
@@ -128,11 +121,10 @@ instrLD_Xminus = do
     mnemonic "LD_Xminus"
     encoding "1001_000d_dddd_1110"
     dst  <- register avrGPR "ddddd"
-    xr   <- cpu avrX
-    ptr  <- readReg xr
+    ptr  <- readField @"x"
     one <- litC 1
     ptr1 <- aluOp PSub ptr one
-    writeReg xr ptr1
+    writeField @"x" ptr1
     v    <- readMem ptr1
     writeReg dst v
     pcAdvance
@@ -143,8 +135,7 @@ instrST_Z = do
     mnemonic "ST_Z"
     encoding "1000_001r_rrrr_0000"
     src  <- register avrGPR "rrrrr"
-    zr   <- cpu avrZ
-    ptr  <- readReg zr
+    ptr  <- readField @"z"
     v    <- readReg src
     writeMem ptr v
     pcAdvance
@@ -155,13 +146,12 @@ instrST_Zplus = do
     mnemonic "ST_Zplus"
     encoding "1001_001r_rrrr_0001"
     src  <- register avrGPR "rrrrr"
-    zr   <- cpu avrZ
-    ptr  <- readReg zr
+    ptr  <- readField @"z"
     v    <- readReg src
     writeMem ptr v
     one <- litC 1
     ptr1 <- aluOp PAdd ptr one
-    writeReg zr ptr1
+    writeField @"z" ptr1
     pcAdvance
 
 -- ST -Z, Rr — 1001_001r_rrrr_0010
@@ -170,11 +160,10 @@ instrST_Zminus = do
     mnemonic "ST_Zminus"
     encoding "1001_001r_rrrr_0010"
     src  <- register avrGPR "rrrrr"
-    zr   <- cpu avrZ
-    ptr  <- readReg zr
+    ptr  <- readField @"z"
     one <- litC 1
     ptr1 <- aluOp PSub ptr one
-    writeReg zr ptr1
+    writeField @"z" ptr1
     v    <- readReg src
     writeMem ptr1 v
     pcAdvance
@@ -185,8 +174,7 @@ instrST_Y = do
     mnemonic "ST_Y"
     encoding "1000_001r_rrrr_1000"
     src  <- register avrGPR "rrrrr"
-    yr   <- cpu avrY
-    ptr  <- readReg yr
+    ptr  <- readField @"y"
     v    <- readReg src
     writeMem ptr v
     pcAdvance
@@ -197,13 +185,12 @@ instrST_Yplus = do
     mnemonic "ST_Yplus"
     encoding "1001_001r_rrrr_1001"
     src  <- register avrGPR "rrrrr"
-    yr   <- cpu avrY
-    ptr  <- readReg yr
+    ptr  <- readField @"y"
     v    <- readReg src
     writeMem ptr v
     one <- litC 1
     ptr1 <- aluOp PAdd ptr one
-    writeReg yr ptr1
+    writeField @"y" ptr1
     pcAdvance
 
 -- ST -Y, Rr — 1001_001r_rrrr_1010
@@ -212,11 +199,10 @@ instrST_Yminus = do
     mnemonic "ST_Yminus"
     encoding "1001_001r_rrrr_1010"
     src  <- register avrGPR "rrrrr"
-    yr   <- cpu avrY
-    ptr  <- readReg yr
+    ptr  <- readField @"y"
     one <- litC 1
     ptr1 <- aluOp PSub ptr one
-    writeReg yr ptr1
+    writeField @"y" ptr1
     v    <- readReg src
     writeMem ptr1 v
     pcAdvance
@@ -227,8 +213,7 @@ instrST_X = do
     mnemonic "ST_X"
     encoding "1001_001r_rrrr_1100"
     src  <- register avrGPR "rrrrr"
-    xr   <- cpu avrX
-    ptr  <- readReg xr
+    ptr  <- readField @"x"
     v    <- readReg src
     writeMem ptr v
     pcAdvance
@@ -239,13 +224,12 @@ instrST_Xplus = do
     mnemonic "ST_Xplus"
     encoding "1001_001r_rrrr_1101"
     src  <- register avrGPR "rrrrr"
-    xr   <- cpu avrX
-    ptr  <- readReg xr
+    ptr  <- readField @"x"
     v    <- readReg src
     writeMem ptr v
     one <- litC 1
     ptr1 <- aluOp PAdd ptr one
-    writeReg xr ptr1
+    writeField @"x" ptr1
     pcAdvance
 
 -- ST -X, Rr — 1001_001r_rrrr_1110
@@ -254,11 +238,10 @@ instrST_Xminus = do
     mnemonic "ST_Xminus"
     encoding "1001_001r_rrrr_1110"
     src  <- register avrGPR "rrrrr"
-    xr   <- cpu avrX
-    ptr  <- readReg xr
+    ptr  <- readField @"x"
     one <- litC 1
     ptr1 <- aluOp PSub ptr one
-    writeReg xr ptr1
+    writeField @"x" ptr1
     v    <- readReg src
     writeMem ptr1 v
     pcAdvance

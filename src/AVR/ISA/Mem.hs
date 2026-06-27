@@ -16,11 +16,15 @@ import AVR.ISA.Types
 instrLD_Z :: AVR m pcW => m ()
 instrLD_Z = do
     mnemonic "LD_Z"
-    encoding "1000_000d_dddd_0000"
-    dst  <- register avrGPR "ddddd"
-    ptr  <- readField avrZ
-    v    <- readMem ptr
-    writeReg dst v
+    d <- defineInstruction $ do
+        fixed "1000000"
+        d <- placeholder @(Unsigned 5)   -- the Rd field, typed, 5 bits
+        bind d
+        fixed "0000"
+        return d
+    ptr <- readField avrZ
+    v   <- readMem ptr
+    writeRegFileF avrGPR d v             -- index the file with the field, no string
     pcAdvance
 
 -- LD Rd, Z+ — 1001_000d_dddd_0001

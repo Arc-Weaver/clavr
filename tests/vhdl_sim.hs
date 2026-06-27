@@ -41,8 +41,21 @@ tests =
         , tcProgBin  = "example/Example/program.bin"
         , tcTbVhd    = "tests/ghdl/avr_soc_tb.vhd"
         , tcStopNs   = 2000
-        , tcExpected = [("gpio_port", "0x85"), ("gpio_ddr", "0x255")]
-          -- 0x55 = 85 decimal, 0xFF = 255 decimal
+        , tcExpected = [("gpio_port", "0x1"), ("gpio_ddr", "0x255")]
+          -- program.S is the SREG alias-read demo: PORT_A = SREG with carry set
+          -- = 1 (proves the register-alias read path); DDR = 0xFF = 255 decimal.
+        }
+
+    -- Signed Ramp peripheral end-to-end (PLAN_TYPED_HDL #3d): CPU writes STEP/
+    -- SETPOINT=-6 over the bus, the ramp's signed FSM converges to -6, the CPU
+    -- reads CURRENT back and drives it onto PORT_A = 0xFA (= 250 = signed -6).
+    , TestCase
+        { tcName     = "test_ramp"
+        , tcProgBin  = "tests/fixtures/ramp_demo.bin"
+        , tcTbVhd    = "tests/ghdl/ramp_tb.vhd"
+        , tcStopNs   = 2500
+        , tcExpected = [("gpio_port", "0x250"), ("gpio_ddr", "0x255")]
+          -- 0x250 = "0x" prefix + image(250); 250 = 0xFA = signed -6.
         }
 
     -- ALU instruction test: chain of ADD/SUB/AND/OR/EOR/INC/DEC/LSR/ASR/NEG/COM/SWAP

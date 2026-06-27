@@ -52,7 +52,7 @@ pushRetAddr ret = do
     spV   <- readReg spR
     eight <- litC 8
     retHi <- aluOp PShiftR (zeroExtend ret :: IExpr 16) eight
-    writeMem spV (truncateB retHi :: IExpr 8)
+    writeMem spV (truncateC retHi :: IExpr 8)   -- 8 <= 16, statically checked
     one   <- litC 1
     spV1  <- aluOp PSub spV one
     writeMem spV1 (truncateB ret :: IExpr 8)
@@ -71,8 +71,8 @@ retFromStack = do
     hi   <- readMem spV2
     writeReg spR spV2
     eight <- litC 8
-    hiW   <- aluOp PShiftL (zeroExtend hi :: IExpr 16) eight
-    ret   <- aluOp POr (zeroExtend lo :: IExpr 16) hiW
+    hiW   <- aluOp PShiftL (zeroExtendC hi :: IExpr 16) eight   -- Word m ~ IExpr 8, 8 <= 16
+    ret   <- aluOp POr (zeroExtendC lo :: IExpr 16) hiW
     pcR   <- cpu avrPC
     writeReg pcR (zeroExtend ret)
 
@@ -82,28 +82,32 @@ retFromStack = do
 -- ---------------------------------------------------------------------------
 
 -- RJMP k — 1100_kkkk_kkkk_kkkk  (12-bit signed offset)
-instrRJMP :: AVR m pcW => m ()
+-- target = (PC+1) + sign_extend(k); the offset must be sign-extended so backward
+-- jumps (negative k) work — see BRBS/BRBC below for the same pattern.
+instrRJMP :: forall m pcW. AVR m pcW => m ()
 instrRJMP = do
     mnemonic "RJMP"
     encoding "1100_kkkk_kkkk_kkkk"
     pcR <- cpu avrPC
     p   <- readReg pcR
-    k   <- immediate "kkkkkkkkkkkk"
+    k12 <- (immediate "kkkkkkkkkkkk" :: m (IExpr 12))
     one <- litC 1
     p1  <- aluOp PAdd p one
+    k   <- signExtendBits k12
     writeReg pcR =<< aluOp PAdd p1 k
 
--- RCALL k — 1101_kkkk_kkkk_kkkk  (12-bit signed offset)
-instrRCALL :: AVR m pcW => m ()
+-- RCALL k — 1101_kkkk_kkkk_kkkk  (12-bit signed offset, sign-extended)
+instrRCALL :: forall m pcW. AVR m pcW => m ()
 instrRCALL = do
     mnemonic "RCALL"
     encoding "1101_kkkk_kkkk_kkkk"
     pcR <- cpu avrPC
     p   <- readReg pcR
-    k   <- immediate "kkkkkkkkkkkk"
+    k12 <- (immediate "kkkkkkkkkkkk" :: m (IExpr 12))
     one <- litC 1
     ret <- aluOp PAdd p one
     pushRetAddr ret
+    k   <- signExtendBits k12
     writeReg pcR =<< aluOp PAdd ret k
 
 -- RET — 1001_0101_0000_1000
@@ -146,7 +150,7 @@ instrBRBS = do
     sss    <- (immediate "sss" :: m (IExpr 3))
     sregR  <- cpu avrSREG
     sreg   <- readReg sregR
-    let sss8 = zeroExtend sss :: IExpr 8
+    let sss8 = zeroExtendC sss :: IExpr 8   -- 3 <= 8, statically checked
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
     masked  <- aluOp PAnd shifted one8
@@ -167,7 +171,7 @@ instrBRBC = do
     sss    <- (immediate "sss" :: m (IExpr 3))
     sregR  <- cpu avrSREG
     sreg   <- readReg sregR
-    let sss8 = zeroExtend sss :: IExpr 8
+    let sss8 = zeroExtendC sss :: IExpr 8   -- 3 <= 8, statically checked
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
     masked  <- aluOp PAnd shifted one8

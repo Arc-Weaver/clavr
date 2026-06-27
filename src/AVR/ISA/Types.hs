@@ -3,10 +3,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 module AVR.ISA.Types
     ( AVRALU(..)
     , Sreg(..)
     , AvrState(..)
+    , readField, writeField
     , avrCPUDef
     , AVR
     , avrFlagAt
@@ -16,10 +20,14 @@ module AVR.ISA.Types
     ) where
 
 import Prelude hiding (Word)
+import Data.Char (toUpper)
+import Data.Proxy (Proxy(..))
 import GHC.Generics (Generic, Rep)
+import GHC.Records  (HasField)
+import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 
 import Hdl.Bits hiding ((!!), zeroExtend, signExtend, truncateB, bitCoerce, slice)
-import Hdl.Types (HdlType(..), GWidth, genericToBits, genericFromBits)
+import Hdl.Types (HdlType(..), GWidth, genericToBits, genericFromBits, Width)
 import Isacle.ISA
 import Isacle.ISA.Types (CPURegister(..))
 
@@ -84,13 +92,13 @@ instance HdlType Sreg where
 -- ---------------------------------------------------------------------------
 
 data AvrState pcW = AvrState
-    { asGPR  :: Vec 32 (Unsigned 8)   -- ^ R0..R31
-    , asSP   :: Unsigned 16           -- ^ stack pointer
-    , asX    :: Unsigned 16           -- ^ X pointer (R27:R26)
-    , asY    :: Unsigned 16           -- ^ Y pointer (R29:R28)
-    , asZ    :: Unsigned 16           -- ^ Z pointer (R31:R30)
-    , asPC   :: Unsigned pcW          -- ^ program counter (width = field Width)
-    , asSREG :: Sreg                  -- ^ status register (bit-map record)
+    { gpr  :: Vec 32 (Unsigned 8)   -- ^ R0..R31
+    , sp   :: Unsigned 16           -- ^ stack pointer
+    , x    :: Unsigned 16           -- ^ X pointer (R27:R26)
+    , y    :: Unsigned 16           -- ^ Y pointer (R29:R28)
+    , z    :: Unsigned 16           -- ^ Z pointer (R31:R30)
+    , pc   :: Unsigned pcW          -- ^ program counter (width = field Width)
+    , sreg :: Sreg                  -- ^ status register (bit-map record)
     } deriving Generic
 
 instance (KnownNat pcW, KnownNat (GWidth (Rep (AvrState pcW))))
@@ -98,6 +106,38 @@ instance (KnownNat pcW, KnownNat (GWidth (Rep (AvrState pcW))))
     type Width (AvrState pcW) = GWidth (Rep (AvrState pcW))
     toBits   = genericToBits
     fromBits = genericFromBits
+
+-- ---------------------------------------------------------------------------
+-- Typed register access over the AvrState record (C1)
+--
+-- 'readField'/'writeField' reach a scalar CPU register by its 'AvrState' field
+-- name; the result/argument width is the field's 'Width' (via 'HasField'), so it
+-- can never be mis-sized. The register key is the field name upper-cased, which
+-- matches the schema 'avrCPUDef' declares ("SP","PC","SREG",…) — so this is a
+-- typed front-end over the existing handle access, no schema/wire change.
+--
+-- > sreg <- readField @"sreg"          -- IExpr 8  (from the Sreg field)
+-- > writeField @"pc" newPc             -- width = pcW (the pc field's width)
+--
+-- (The register file 'gpr' is indexed, so it keeps the 'register' path.)
+-- ---------------------------------------------------------------------------
+
+regKey :: forall (name :: Symbol). KnownSymbol name => String
+regKey = map toUpper (symbolVal (Proxy @name))
+
+readField :: forall (name :: Symbol) a pcW m.
+    ( KnownSymbol name, HasField name (AvrState pcW) a
+    , HdlType a, KnownNat (Width a)
+    , MonadALU m, AluDef m ~ AVRALU pcW )
+    => m (IExpr (Width a))
+readField = readReg (CPURegister (regKey @name) :: CPURegister (Width a))
+
+writeField :: forall (name :: Symbol) a pcW m.
+    ( KnownSymbol name, HasField name (AvrState pcW) a
+    , HdlType a, KnownNat (Width a)
+    , MonadALU m, AluDef m ~ AVRALU pcW )
+    => IExpr (Width a) -> m ()
+writeField = writeReg (CPURegister (regKey @name) :: CPURegister (Width a))
 
 -- ---------------------------------------------------------------------------
 -- CPUDef — parameterised over PC width via TypeApplications

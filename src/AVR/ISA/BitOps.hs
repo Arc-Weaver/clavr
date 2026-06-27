@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 module AVR.ISA.BitOps where
 
 import Prelude hiding (Word)
@@ -18,11 +19,10 @@ instrBSET = do
     encoding "1001_0100_0sss_1000"
     -- SREG[sss] := 1, where sss is a runtime field:  SREG <- SREG | (1 << sss)
     s     <- immediate "sss"
-    sregR <- cpu avrSREG
-    sreg  <- readReg sregR
+    sreg  <- readField @"sreg"
     one   <- litC 1
     mask  <- aluOp PShiftL one (zeroExtendC (s :: IExpr 3) :: IExpr 8)
-    writeReg sregR =<< aluOp POr sreg mask
+    writeField @"sreg" =<< aluOp POr sreg mask
     pcAdvance
 
 -- BCLR s — 1001_0100_1sss_1000
@@ -32,12 +32,11 @@ instrBCLR = do
     encoding "1001_0100_1sss_1000"
     -- SREG[sss] := 0:  SREG <- SREG & ~(1 << sss)
     s       <- immediate "sss"
-    sregR   <- cpu avrSREG
-    sreg    <- readReg sregR
+    sreg    <- readField @"sreg"
     one     <- litC 1
     mask    <- aluOp PShiftL one (zeroExtendC (s :: IExpr 3) :: IExpr 8)
     notMask <- aluOp PNot mask one        -- second operand ignored (PNot is unary)
-    writeReg sregR =<< aluOp PAnd sreg notMask
+    writeField @"sreg" =<< aluOp PAnd sreg notMask
     pcAdvance
 
 -- BST Rd, b — 1111_101d_dddd_0bbb

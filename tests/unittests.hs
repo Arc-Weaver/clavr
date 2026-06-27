@@ -27,10 +27,10 @@ stateChecks = do
     let s = AvrState (Vec (replicate 32 0)) 0xBEEF 1 2 3 0x1234 (Sreg 1 0 0 0 0 0 0 1)
             :: AvrState 16
         s' = fromBits (toBits s) :: AvrState 16
-    assert "AvrState round-trips SP"     (asSP s' == 0xBEEF)
-    assert "AvrState round-trips PC"     (asPC s' == 0x1234)
-    assert "AvrState round-trips SREG.I" (sI (asSREG s') == 1)
-    assert "AvrState round-trips SREG.C" (sC (asSREG s') == 1)
+    assert "AvrState round-trips SP"     (sp s' == 0xBEEF)
+    assert "AvrState round-trips PC"     (pc s' == 0x1234)
+    assert "AvrState round-trips SREG.I" (sI (sreg s') == 1)
+    assert "AvrState round-trips SREG.C" (sC (sreg s') == 1)
 
 main :: IO ()
 main = do

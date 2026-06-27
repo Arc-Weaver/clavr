@@ -24,7 +24,7 @@ import GHC.Generics (Generic, Rep)
 import Hdl.Bits hiding ((!!), zeroExtend, signExtend, truncateB, bitCoerce, slice)
 import Hdl.Types (HdlType(..), GWidth, genericToBits, genericFromBits)
 import Isacle.ISA
-import Isacle.ISA.Types (CPURegister(..))
+import Isacle.ISA.Types (CPURegister(..), CPURegFile, RegisterFile)
 
 -- ---------------------------------------------------------------------------
 -- AVR ALU definition record
@@ -32,13 +32,13 @@ import Isacle.ISA.Types (CPURegister(..))
 -- ---------------------------------------------------------------------------
 
 data AVRALU pcW = AVRALU
-    { avrGPR   :: CPURegFile 32 8
-    , avrSP    :: CPURegister 16
-    , avrPC    :: CPURegister pcW
-    , avrX     :: CPURegister 16    -- data pointer (R27:R26)
-    , avrY     :: CPURegister 16    -- data pointer (R29:R28)
-    , avrZ     :: CPURegister 16    -- data pointer (R31:R30)
-    , avrSREG  :: CPURegister 8     -- packed status register (read-only)
+    { avrGPR   :: RegisterFile 32 (Unsigned 8)
+    , avrSP    :: CPURegister (Unsigned 16)
+    , avrPC    :: CPURegister (Unsigned pcW)
+    , avrX     :: CPURegister (Unsigned 16)    -- data pointer (R27:R26)
+    , avrY     :: CPURegister (Unsigned 16)    -- data pointer (R29:R28)
+    , avrZ     :: CPURegister (Unsigned 16)    -- data pointer (R31:R30)
+    , avrSREG  :: CPURegister (Unsigned 8)     -- packed status register
     , avrFlagC :: CPUFlag
     , avrFlagZ :: CPUFlag
     , avrFlagN :: CPUFlag
@@ -107,23 +107,28 @@ instance (KnownNat pcW, KnownNat (GWidth (Rep (AvrState pcW))))
 -- Usage: avrCPUDef @16  or  avrCPUDef @22
 -- ---------------------------------------------------------------------------
 
-avrCPUDef :: forall pcW. KnownNat pcW => CPUDef (AVRALU pcW)
+avrCPUDef :: forall pcW. KnownNat pcW => ISACoreDefinition (AVRALU pcW)
 avrCPUDef = do
     endianness LittleEndian
-    gpr'    <- regFile "GPR" (width @32) byte
-    sp'     <- reg "SP"  w16
-    pc'     <- reg "PC"  (SNat @pcW)
-    x'      <- reg "X"   w16
-    y'      <- reg "Y"   w16
-    z'      <- reg "Z"   w16
-    -- SREG and its flags derive from the Sreg record layout (MSB-first):
-    -- fs = [sI@7, sT@6, sH@5, sS@4, sV@3, sN@2, sZ@1, sC@0].
-    (sreg, fs) <- flagRec @Sreg "SREG"
-    let i = fs!!0; t = fs!!1; h = fs!!2; s = fs!!3
-        v = fs!!4; n = fs!!5; z = fs!!6; c = fs!!7
+    gpr'  <- newRegFile "GPR"        -- RegisterFile 32 (Unsigned 8)
+    sp'   <- reg "SP"   w16
+    pc'   <- reg "PC"   (SNat @pcW)
+    x'    <- reg "X"    w16
+    y'    <- reg "Y"    w16
+    z'    <- reg "Z"    w16
+    sreg' <- reg "SREG" w8
+    -- Flags are bits of SREG (MSB-first: I@7 T@6 H@5 S@4 V@3 N@2 Z@1 C@0).
+    i <- newFlag "I" (sreg' ! 7)
+    t <- newFlag "T" (sreg' ! 6)
+    h <- newFlag "H" (sreg' ! 5)
+    s <- newFlag "S" (sreg' ! 4)
+    v <- newFlag "V" (sreg' ! 3)
+    n <- newFlag "N" (sreg' ! 2)
+    z <- newFlag "Z" (sreg' ! 1)
+    c <- newFlag "C" (sreg' ! 0)
     aliasFile gpr' "0x00 + regIndex"
-    aliasReg  sp'  0x5D
-    aliasReg  sreg 0x5F
+    aliasReg  sp'   0x5D
+    aliasReg  sreg' 0x5F
     pure AVRALU
         { avrGPR   = gpr'
         , avrSP    = sp'
@@ -131,7 +136,7 @@ avrCPUDef = do
         , avrX     = x'
         , avrY     = y'
         , avrZ     = z'
-        , avrSREG  = sreg
+        , avrSREG  = sreg'
         , avrFlagC = c
         , avrFlagZ = z
         , avrFlagN = n

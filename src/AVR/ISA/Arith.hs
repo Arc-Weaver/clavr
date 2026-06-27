@@ -172,8 +172,8 @@ instrMUL = do
     a   <- readReg dst
     b   <- readReg src
     r   <- aluOp PMul a b
-    let r0 = CPURegister "GPR:0"  :: CPURegister 8
-        r1 = CPURegister "GPR:1"  :: CPURegister 8
+    let r0 = CPURegister "GPR:0"  :: CPURegister (Unsigned 8)
+        r1 = CPURegister "GPR:1"  :: CPURegister (Unsigned 8)
     writeReg r0 r
     writeReg r1 r
     stubArith
@@ -385,8 +385,8 @@ instrMULS = do
     a   <- readReg dst
     b   <- readReg src
     r   <- aluOp PMulSigned a b
-    let r0 = CPURegister "GPR:0" :: CPURegister 8
-        r1 = CPURegister "GPR:1" :: CPURegister 8
+    let r0 = CPURegister "GPR:0" :: CPURegister (Unsigned 8)
+        r1 = CPURegister "GPR:1" :: CPURegister (Unsigned 8)
     writeReg r0 r
     writeReg r1 r
     stubArith

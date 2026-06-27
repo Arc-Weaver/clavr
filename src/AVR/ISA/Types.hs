@@ -6,6 +6,7 @@
 module AVR.ISA.Types
     ( AVRALU(..)
     , Sreg(..)
+    , AvrState(..)
     , avrCPUDef
     , AVR
     , avrFlagAt
@@ -66,6 +67,35 @@ data Sreg = Sreg
 
 instance HdlType Sreg where
     type Width Sreg = GWidth (Rep Sreg)
+    toBits   = genericToBits
+    fromBits = genericFromBits
+
+-- ---------------------------------------------------------------------------
+-- AVR architectural state as one HdlType record (C1: "core satisfies HdlType")
+--
+-- The whole core state is a record whose every field is itself an 'HdlType':
+-- the register file is a 'Vec' array (H4), the pointers/SP are 'Unsigned',
+-- the PC is 'Unsigned pcW' (its width is the field's 'Width' — length-by-default,
+-- so no free pcW thread), and SREG is the bit-map record above (C2). Core,
+-- registers and bit-maps are the *same* HdlType mechanism, recursively.
+--
+-- This is the structural view the eventual full reframe builds on; the
+-- instruction-access machinery (AVRALU handles) still drives synthesis today.
+-- ---------------------------------------------------------------------------
+
+data AvrState pcW = AvrState
+    { asGPR  :: Vec 32 (Unsigned 8)   -- ^ R0..R31
+    , asSP   :: Unsigned 16           -- ^ stack pointer
+    , asX    :: Unsigned 16           -- ^ X pointer (R27:R26)
+    , asY    :: Unsigned 16           -- ^ Y pointer (R29:R28)
+    , asZ    :: Unsigned 16           -- ^ Z pointer (R31:R30)
+    , asPC   :: Unsigned pcW          -- ^ program counter (width = field Width)
+    , asSREG :: Sreg                  -- ^ status register (bit-map record)
+    } deriving Generic
+
+instance (KnownNat pcW, KnownNat (GWidth (Rep (AvrState pcW))))
+      => HdlType (AvrState pcW) where
+    type Width (AvrState pcW) = GWidth (Rep (AvrState pcW))
     toBits   = genericToBits
     fromBits = genericFromBits
 

@@ -17,10 +17,10 @@ import AVR.ISA.Types
 instrPUSH :: AVR m pcW => m ()
 instrPUSH = do
     mnemonic "PUSH"
-    encoding "1001_001d_dddd_1111"
-    src  <- register avrGPR "ddddd"
+    d <- defineInstruction $ do
+        fixed "1001001"; d <- field @(Unsigned 5); fixed "1111"; return d
     spV  <- readField avrSP
-    val  <- readReg src
+    val  <- readRegFileF avrGPR d
     writeMem spV val
     one  <- litC 1
     writeField avrSP =<< aluOp PSub spV one
@@ -30,13 +30,13 @@ instrPUSH = do
 instrPOP :: AVR m pcW => m ()
 instrPOP = do
     mnemonic "POP"
-    encoding "1001_000d_dddd_1111"
-    dst  <- register avrGPR "ddddd"
-    spV  <- readField avrSP
-    one  <- litC 1
+    d <- defineInstruction $ do
+        fixed "1001000"; d <- field @(Unsigned 5); fixed "1111"; return d
+    spV   <- readField avrSP
+    one   <- litC 1
     newSp <- aluOp PAdd spV one
     writeField avrSP newSp
-    writeReg dst =<< readMem newSp
+    writeRegFileF avrGPR d =<< readMem newSp
     pcAdvance
 
 -- ---------------------------------------------------------------------------
@@ -69,8 +69,7 @@ retFromStack = do
     eight <- litC 8
     hiW   <- aluOp PShiftL (zeroExtendC hi :: IExpr 16) eight   -- Word m ~ IExpr 8, 8 <= 16
     ret   <- aluOp POr (zeroExtendC lo :: IExpr 16) hiW
-    pcR   <- cpu avrPC
-    writeReg pcR (zeroExtend ret)
+    writeField avrPC (zeroExtend ret)
 
 -- ---------------------------------------------------------------------------
 -- Relative branches
@@ -78,46 +77,42 @@ retFromStack = do
 -- ---------------------------------------------------------------------------
 
 -- RJMP k — 1100_kkkk_kkkk_kkkk  (12-bit signed offset)
--- target = (PC+1) + sign_extend(k); the offset must be sign-extended so backward
--- jumps (negative k) work — see BRBS/BRBC below for the same pattern.
 instrRJMP :: forall m pcW. AVR m pcW => m ()
 instrRJMP = do
     mnemonic "RJMP"
-    encoding "1100_kkkk_kkkk_kkkk"
-    pcR <- cpu avrPC
-    p   <- readReg pcR
-    k12 <- (immediate "kkkkkkkkkkkk" :: m (IExpr 12))
+    k12f <- defineInstruction $ do
+        fixed "1100"; k <- field @(Unsigned 12); return k
+    p   <- readField avrPC
     one <- litC 1
     p1  <- aluOp PAdd p one
-    k   <- signExtendBits k12
-    writeReg pcR =<< aluOp PAdd p1 k
+    k   <- signExtendBits (immediateF k12f :: IExpr 12)
+    writeField avrPC =<< aluOp PAdd p1 k
 
 -- RCALL k — 1101_kkkk_kkkk_kkkk  (12-bit signed offset, sign-extended)
 instrRCALL :: forall m pcW. AVR m pcW => m ()
 instrRCALL = do
     mnemonic "RCALL"
-    encoding "1101_kkkk_kkkk_kkkk"
-    pcR <- cpu avrPC
-    p   <- readReg pcR
-    k12 <- (immediate "kkkkkkkkkkkk" :: m (IExpr 12))
+    k12f <- defineInstruction $ do
+        fixed "1101"; k <- field @(Unsigned 12); return k
+    p   <- readField avrPC
     one <- litC 1
     ret <- aluOp PAdd p one
     pushRetAddr ret
-    k   <- signExtendBits k12
-    writeReg pcR =<< aluOp PAdd ret k
+    k   <- signExtendBits (immediateF k12f :: IExpr 12)
+    writeField avrPC =<< aluOp PAdd ret k
 
 -- RET — 1001_0101_0000_1000
 instrRET :: AVR m pcW => m ()
 instrRET = do
     mnemonic "RET"
-    encoding "1001_0101_0000_1000"
+    defineInstruction $ fixed "1001010100001000"
     retFromStack
 
 -- RETI — 1001_0101_0001_1000
 instrRETI :: AVR m pcW => m ()
 instrRETI = do
     mnemonic "RETI"
-    encoding "1001_0101_0001_1000"
+    defineInstruction $ fixed "1001010100011000"
     retFromStack
     alu <- cpu id
     setFlagHi (avrFlagI alu)
@@ -125,55 +120,46 @@ instrRETI = do
 -- ---------------------------------------------------------------------------
 -- Conditional relative branches — BRBS / BRBC
 -- Encoding: 1111_00kk_kkkk_ksss (BRBS) / 1111_01kk_kkkk_ksss (BRBC)
--- sss = 3-bit SREG bit index: 0=C 1=Z 2=N 3=V 4=S 5=H 6=T 7=I
--- target = (PC+1) + sign_extend(k)
---
--- Read SREG, shift right by sss, mask bit 0: that is the selected flag.
--- BRBS branches when the flag is set; BRBC when it is clear.
+-- sss = 3-bit SREG bit index; k = 7-bit signed offset; target = (PC+1) + k.
 -- ---------------------------------------------------------------------------
 
 instrBRBS :: forall m pcW. AVR m pcW => m ()
 instrBRBS = do
     mnemonic "BRBS"
-    encoding "1111_00kk_kkkk_ksss"
-    pcR    <- cpu avrPC
-    p      <- readReg pcR
-    k7     <- (immediate "kkkkkkk" :: m (IExpr 7))
+    (k7f, sssf) <- defineInstruction $ do
+        fixed "111100"; k <- field @(Unsigned 7); sss <- field @(Unsigned 3); return (k, sss)
+    p      <- readField avrPC
     pcOne  <- litC 1
     p1     <- aluOp PAdd p pcOne
-    k      <- signExtendBits k7
+    k      <- signExtendBits (immediateF k7f :: IExpr 7)
     target <- aluOp PAdd p1 k
-    sss    <- (immediate "sss" :: m (IExpr 3))
     sreg   <- readField avrSREG
-    let sss8 = zeroExtendC sss :: IExpr 8   -- 3 <= 8, statically checked
+    let sss8 = zeroExtendC (immediateF sssf :: IExpr 3) :: IExpr 8   -- 3 <= 8
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
     masked  <- aluOp PAnd shifted one8
     cond    <- isZero =<< isZero masked   -- 1 when flag is set
-    absJumpIf pcR cond target
+    absJumpIfF avrPC cond target
 
 instrBRBC :: forall m pcW. AVR m pcW => m ()
 instrBRBC = do
     mnemonic "BRBC"
-    encoding "1111_01kk_kkkk_ksss"
-    pcR    <- cpu avrPC
-    p      <- readReg pcR
-    k7     <- (immediate "kkkkkkk" :: m (IExpr 7))
+    (k7f, sssf) <- defineInstruction $ do
+        fixed "111101"; k <- field @(Unsigned 7); sss <- field @(Unsigned 3); return (k, sss)
+    p      <- readField avrPC
     pcOne  <- litC 1
     p1     <- aluOp PAdd p pcOne
-    k      <- signExtendBits k7
+    k      <- signExtendBits (immediateF k7f :: IExpr 7)
     target <- aluOp PAdd p1 k
-    sss    <- (immediate "sss" :: m (IExpr 3))
     sreg   <- readField avrSREG
-    let sss8 = zeroExtendC sss :: IExpr 8   -- 3 <= 8, statically checked
+    let sss8 = zeroExtendC (immediateF sssf :: IExpr 3) :: IExpr 8   -- 3 <= 8
     shifted <- aluOp PShiftR sreg sss8
     one8    <- litC 1
     masked  <- aluOp PAnd shifted one8
     cond    <- isZero masked              -- 1 when flag is clear
-    absJumpIf pcR cond target
+    absJumpIfF avrPC cond target
 
 -- Named aliases — kept for documentation; same encodings as BRBS/BRBC with fixed sss bits.
--- Not included in avrCoreInstrs (BRBS/BRBC subsume them all).
 instrBREQ, instrBRNE :: AVR m pcW => m ()
 instrBRCS, instrBRCC :: AVR m pcW => m ()
 instrBRMI, instrBRPL :: AVR m pcW => m ()
@@ -201,63 +187,59 @@ instrBRLO = instrBRBS; instrBRSH = instrBRBC
 instrIJMP :: AVR m pcW => m ()
 instrIJMP = do
     mnemonic "IJMP"
-    encoding "1001_0100_0000_1001"
-    pcR <- cpu avrPC
-    writeReg pcR . zeroExtend =<< readField avrZ
+    defineInstruction $ fixed "1001010000001001"
+    writeField avrPC . zeroExtend =<< readField avrZ
 
 -- ICALL — 1001_0101_0000_1001
 instrICALL :: AVR m pcW => m ()
 instrICALL = do
     mnemonic "ICALL"
-    encoding "1001_0101_0000_1001"
-    pcR  <- cpu avrPC
-    p    <- readReg pcR
+    defineInstruction $ fixed "1001010100001001"
+    p    <- readField avrPC
     one  <- litC 1
     ret  <- aluOp PAdd p one
     pushRetAddr ret
-    writeReg pcR . zeroExtend =<< readField avrZ
+    writeField avrPC . zeroExtend =<< readField avrZ
 
 -- NOP — 0000_0000_0000_0000
 instrNOP :: AVR m pcW => m ()
 instrNOP = do
     mnemonic "NOP"
-    encoding "0000_0000_0000_0000"
+    defineInstruction $ fixed "0000000000000000"
     pcAdvance
 
 -- ---------------------------------------------------------------------------
--- 32-bit (two-word) control flow
+-- 32-bit (two-word) control flow.  The k bits in word 1 are unused (16-bit PC
+-- uses the second word), so they are don't-cares in the encoding.
 -- ---------------------------------------------------------------------------
 
 -- JMP k — 1001_010k_kkkk_110k + 16-bit target word
 instrJMP :: AVR m pcW => m ()
 instrJMP = do
     mnemonic "JMP"
-    encoding "1001_010k_kkkk_110k"
-    pcR <- cpu avrPC
-    p   <- readReg pcR
+    defineInstruction $ fixed "1001010.....110."
+    p   <- readField avrPC
     tgt <- readCode p
-    writeReg pcR (zeroExtend tgt)
+    writeField avrPC (zeroExtend tgt)
 
 -- CALL k — 1001_010k_kkkk_111k + 16-bit target word
 instrCALL :: AVR m pcW => m ()
 instrCALL = do
     mnemonic "CALL"
-    encoding "1001_010k_kkkk_111k"
-    pcR  <- cpu avrPC
-    p    <- readReg pcR
+    defineInstruction $ fixed "1001010.....111."
+    p    <- readField avrPC
     tgt  <- readCode p
     one  <- litC 1
     p1   <- aluOp PAdd p one
     ret  <- aluOp PAdd p1 one        -- return address = after both words (p+2)
     pushRetAddr ret
-    writeReg pcR (zeroExtend tgt)
+    writeField avrPC (zeroExtend tgt)
 
 -- MOVW Rd+1:Rd, Rr+1:Rr — 0000_0001_dddd_rrrr  (stub: copy lo register)
 instrMOVW :: AVR m pcW => m ()
 instrMOVW = do
     mnemonic "MOVW"
-    encoding "0000_0001_dddd_rrrr"
-    dst <- register avrGPR "dddd"
-    src <- register avrGPR "rrrr"
-    writeReg dst =<< readReg src
+    (d, r) <- defineInstruction $ do
+        fixed "00000001"; d <- field @(Unsigned 4); r <- field @(Unsigned 4); return (d, r)
+    writeRegFileF avrGPR d =<< readRegFileF avrGPR r
     pcAdvance

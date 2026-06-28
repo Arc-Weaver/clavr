@@ -4,7 +4,7 @@ module AVR.ISA.BitOps where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice, add, mul, shiftL, shiftR, xor, (.&.), (.|.))
 import Isacle.ISA
 import AVR.ISA.Types
 
@@ -21,8 +21,8 @@ instrBSET = do
         fixed "100101000"; s <- field @(Unsigned 3); fixed "1000"; return s
     sreg <- readField avrSREG
     one  <- litC 1
-    mask <- aluOp PShiftL one (zeroExtendC (immediateF s :: IExpr 3) :: IExpr 8)
-    writeField avrSREG =<< aluOp POr sreg mask
+    let mask = shiftL one (zeroExtendC (immediateF s :: IExpr (Unsigned 3)) :: IExpr (Unsigned 8))
+    writeField avrSREG (sreg .|. mask)
     pcAdvance
 
 -- BCLR s — 1001_0100_1sss_1000
@@ -34,9 +34,9 @@ instrBCLR = do
         fixed "100101001"; s <- field @(Unsigned 3); fixed "1000"; return s
     sreg    <- readField avrSREG
     one     <- litC 1
-    mask    <- aluOp PShiftL one (zeroExtendC (immediateF s :: IExpr 3) :: IExpr 8)
-    notMask <- aluOp PNot mask one        -- second operand ignored (PNot is unary)
-    writeField avrSREG =<< aluOp PAnd sreg notMask
+    let mask    = shiftL one (zeroExtendC (immediateF s :: IExpr (Unsigned 3)) :: IExpr (Unsigned 8))
+        notMask = inv mask
+    writeField avrSREG (sreg .&. notMask)
     pcAdvance
 
 -- BST Rd, b — 1111_101d_dddd_0bbb
@@ -92,7 +92,7 @@ instrCBI = do
     a <- defineInstruction $ do
         fixed "10011000"; a <- field @(Unsigned 5); _ <- field @(Unsigned 3); return a
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtendC (immediateF a :: IExpr 5) :: IExpr 16) ioBase
+    let addr = (zeroExtendC (immediateF a :: IExpr (Unsigned 5)) :: IExpr (Unsigned 16)) + ioBase
     v   <- readMem addr
     writeMem addr v
     pcAdvance
@@ -104,7 +104,7 @@ instrSBI = do
     a <- defineInstruction $ do
         fixed "10011010"; a <- field @(Unsigned 5); _ <- field @(Unsigned 3); return a
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtendC (immediateF a :: IExpr 5) :: IExpr 16) ioBase
+    let addr = (zeroExtendC (immediateF a :: IExpr (Unsigned 5)) :: IExpr (Unsigned 16)) + ioBase
     v   <- readMem addr
     writeMem addr v
     pcAdvance
@@ -116,7 +116,7 @@ instrSBIC = do
     a <- defineInstruction $ do
         fixed "10011001"; a <- field @(Unsigned 5); _ <- field @(Unsigned 3); return a
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtendC (immediateF a :: IExpr 5) :: IExpr 16) ioBase
+    let addr = (zeroExtendC (immediateF a :: IExpr (Unsigned 5)) :: IExpr (Unsigned 16)) + ioBase
     _v   <- readMem addr
     pcAdvance
 
@@ -127,7 +127,7 @@ instrSBIS = do
     a <- defineInstruction $ do
         fixed "10011011"; a <- field @(Unsigned 5); _ <- field @(Unsigned 3); return a
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtendC (immediateF a :: IExpr 5) :: IExpr 16) ioBase
+    let addr = (zeroExtendC (immediateF a :: IExpr (Unsigned 5)) :: IExpr (Unsigned 16)) + ioBase
     _v   <- readMem addr
     pcAdvance
 
@@ -149,7 +149,7 @@ instrIN = do
         bindBits a 4                       -- AAAA: bits 3-0
         return (d, a)
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtendC (immediateF a :: IExpr 6) :: IExpr 16) ioBase
+    let addr = (zeroExtendC (immediateF a :: IExpr (Unsigned 6)) :: IExpr (Unsigned 16)) + ioBase
     v    <- readMem addr
     writeRegFileF avrGPR d v
     pcAdvance
@@ -166,7 +166,7 @@ instrOUT = do
         bindBits a 4                       -- AAAA: bits 3-0
         return (r, a)
     ioBase <- litC 0x20
-    addr <- aluOp PAdd (zeroExtendC (immediateF a :: IExpr 6) :: IExpr 16) ioBase
+    let addr = (zeroExtendC (immediateF a :: IExpr (Unsigned 6)) :: IExpr (Unsigned 16)) + ioBase
     v    <- readRegFileF avrGPR r
     writeMem addr v
     pcAdvance

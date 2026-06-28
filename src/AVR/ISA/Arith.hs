@@ -4,44 +4,46 @@ module AVR.ISA.Arith where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice, add, mul, shiftL, shiftR, xor, (.&.), (.|.))
 import Isacle.ISA
-import Isacle.ISA.Types (CPURegister(..))
 import AVR.ISA.Types
+
+-- An 8-bit value-typed operation on register contents.
+type Op8 = IExpr (Unsigned 8) -> IExpr (Unsigned 8) -> IExpr (Unsigned 8)
 
 -- ---------------------------------------------------------------------------
 -- Two-register arithmetic/logical instructions  ("00XX_XXrd_dddd_rrrr")
 -- The "<6 fixed bits>rd_dddd_rrrr" shape is captured by 'twoReg'.
 -- ---------------------------------------------------------------------------
 
--- | A two-register op: read Rd and Rr, combine, write Rd.
-twoRegOp :: AVR m pcW => String -> ALUPrim -> m ()
-twoRegOp pre op = do
+-- | A two-register op: read Rd and Rr, combine with @f@, write Rd.
+twoRegOp :: AVR m pcW => String -> Op8 -> m ()
+twoRegOp pre f = do
     (d, r) <- defineInstruction $ twoReg pre
     a <- readRegFileF avrGPR d
     b <- readRegFileF avrGPR r
-    writeRegFileF avrGPR d =<< aluOp op a b
+    writeRegFileF avrGPR d (f a b)
     stubArith
     pcAdvance
 
--- | A two-register compare (no write-back): read Rd and Rr, subtract, discard.
+-- | A two-register compare (no write-back): the difference drives the flags,
+-- which are stubbed here, so only the operand reads remain.
 twoRegCmp :: AVR m pcW => String -> m ()
 twoRegCmp pre = do
     (d, r) <- defineInstruction $ twoReg pre
-    a <- readRegFileF avrGPR d
-    b <- readRegFileF avrGPR r
-    _ <- aluOp PSub a b
+    _ <- readRegFileF avrGPR d
+    _ <- readRegFileF avrGPR r
     stubArith
     pcAdvance
 
 instrADD, instrADC, instrSUB, instrSBC, instrAND, instrOR, instrEOR :: AVR m pcW => m ()
-instrADD = mnemonic "ADD" >> twoRegOp "000011" PAdd
-instrADC = mnemonic "ADC" >> twoRegOp "000111" PAdd
-instrSUB = mnemonic "SUB" >> twoRegOp "000110" PSub
-instrSBC = mnemonic "SBC" >> twoRegOp "000010" PSub
-instrAND = mnemonic "AND" >> twoRegOp "001000" PAnd
-instrOR  = mnemonic "OR"  >> twoRegOp "001010" POr
-instrEOR = mnemonic "EOR" >> twoRegOp "001001" PXor
+instrADD = mnemonic "ADD" >> twoRegOp "000011" (+)
+instrADC = mnemonic "ADC" >> twoRegOp "000111" (+)
+instrSUB = mnemonic "SUB" >> twoRegOp "000110" (-)
+instrSBC = mnemonic "SBC" >> twoRegOp "000010" (-)
+instrAND = mnemonic "AND" >> twoRegOp "001000" (.&.)
+instrOR  = mnemonic "OR"  >> twoRegOp "001010" (.|.)
+instrEOR = mnemonic "EOR" >> twoRegOp "001001" xor
 
 instrCP, instrCPC, instrCPSE :: AVR m pcW => m ()
 instrCP   = mnemonic "CP"   >> twoRegCmp "000101"
@@ -56,18 +58,18 @@ instrMOV = do
     writeRegFileF avrGPR d =<< readRegFileF avrGPR r
     pcAdvance
 
--- MUL Rd, Rr — 1001_11rd_dddd_rrrr  (result → R1:R0, both fixed registers)
+-- MUL Rd, Rr — 1001_11rd_dddd_rrrr  (unsigned 8×8 → 16-bit product in R1:R0)
+-- The product is genuinely 16 bits: 'mul' grows the result type to Unsigned 16,
+-- and its low/high bytes go to R0/R1 (fixed result registers, by constant index).
 instrMUL :: AVR m pcW => m ()
 instrMUL = do
     mnemonic "MUL"
     (d, r) <- defineInstruction $ twoReg "100111"
     a <- readRegFileF avrGPR d
     b <- readRegFileF avrGPR r
-    res <- aluOp PMul a b
-    let r0 = CPURegister "GPR:0" :: CPURegister (Unsigned 8)   -- fixed result regs
-        r1 = CPURegister "GPR:1" :: CPURegister (Unsigned 8)
-    writeReg r0 res
-    writeReg r1 res
+    let p = mul a b :: IExpr (Unsigned 16)
+    writeRegFileAt avrGPR 0 (truncateB p)     -- R0 = product[7:0]
+    writeRegFileAt avrGPR 1 (slice 15 8 p)    -- R1 = product[15:8]
     stubArith
     pcAdvance
 
@@ -76,36 +78,35 @@ instrMUL = do
 -- The "<4 fixed bits>KKKK_dddd_KKKK" shape (Rd+16, split K) is 'immReg'.
 -- ---------------------------------------------------------------------------
 
--- | An upper-register immediate op: read Rd (R16–R31), combine with K, write Rd.
-immRegOp :: AVR m pcW => String -> ALUPrim -> m ()
-immRegOp pre op = do
+-- | An upper-register immediate op: read Rd (R16–R31), combine with K via @f@.
+immRegOp :: AVR m pcW => String -> Op8 -> m ()
+immRegOp pre f = do
     (d, k) <- defineInstruction $ immReg pre
     a <- readRegFileFOffset avrGPR d 16
-    writeRegFileFOffset avrGPR d 16 =<< aluOp op a (immediateF k :: IExpr 8)
+    writeRegFileFOffset avrGPR d 16 (f a (immediateF k))
     stubArith
     pcAdvance
 
 instrSUBI, instrSBCI, instrANDI, instrORI :: AVR m pcW => m ()
-instrSUBI = mnemonic "SUBI" >> immRegOp "0101" PSub
-instrSBCI = mnemonic "SBCI" >> immRegOp "0100" PSub
-instrANDI = mnemonic "ANDI" >> immRegOp "0111" PAnd
-instrORI  = mnemonic "ORI"  >> immRegOp "0110" POr
+instrSUBI = mnemonic "SUBI" >> immRegOp "0101" (-)
+instrSBCI = mnemonic "SBCI" >> immRegOp "0100" (-)
+instrANDI = mnemonic "ANDI" >> immRegOp "0111" (.&.)
+instrORI  = mnemonic "ORI"  >> immRegOp "0110" (.|.)
 
 -- LDI Rd, K — 1110_KKKK_dddd_KKKK
 instrLDI :: AVR m pcW => m ()
 instrLDI = do
     mnemonic "LDI"
     (d, k) <- defineInstruction $ immReg "1110"
-    writeRegFileFOffset avrGPR d 16 (immediateF k :: IExpr 8)
+    writeRegFileFOffset avrGPR d 16 (immediateF k)
     pcAdvance
 
--- CPI Rd, K — 0011_KKKK_dddd_KKKK  (compare, no write-back)
+-- CPI Rd, K — 0011_KKKK_dddd_KKKK  (compare, no write-back; flags stubbed)
 instrCPI :: AVR m pcW => m ()
 instrCPI = do
     mnemonic "CPI"
-    (d, k) <- defineInstruction $ immReg "0011"
-    a <- readRegFileFOffset avrGPR d 16
-    _ <- aluOp PSub a (immediateF k :: IExpr 8)
+    (d, _k) <- defineInstruction $ immReg "0011"
+    _ <- readRegFileFOffset avrGPR d 16
     stubArith
     pcAdvance
 
@@ -113,23 +114,23 @@ instrCPI = do
 -- Single-register instructions  ("1001_010d_dddd_XXXX", contiguous 5-bit d)
 -- ---------------------------------------------------------------------------
 
--- | A single-register op given the 4-bit suffix and a transform of Rd.
-oneRegOp :: AVR m pcW => String -> (IExpr 8 -> m (IExpr 8)) -> m ()
+-- | A single-register op given the 4-bit suffix and a pure transform of Rd.
+oneRegOp :: AVR m pcW => String -> (IExpr (Unsigned 8) -> IExpr (Unsigned 8)) -> m ()
 oneRegOp suf f = do
     d <- defineInstruction $ do
         fixed "1001010"; d <- field @(Unsigned 5); fixed suf; return d
     a <- readRegFileF avrGPR d
-    writeRegFileF avrGPR d =<< f a
+    writeRegFileF avrGPR d (f a)
     stubArith
     pcAdvance
 
 instrINC, instrCOM, instrNEG, instrASR, instrLSR, instrROR :: AVR m pcW => m ()
-instrINC = mnemonic "INC" >> oneRegOp "0011" (\a -> litC 1 >>= aluOp PAdd a)
-instrCOM = mnemonic "COM" >> oneRegOp "0000" (\a -> aluOp PNot a a)
-instrNEG = mnemonic "NEG" >> oneRegOp "0001" (\a -> litC 0 >>= \z -> aluOp PSub z a)
-instrASR = mnemonic "ASR" >> oneRegOp "0101" (\a -> litC 1 >>= aluOp PArithShiftR a)
-instrLSR = mnemonic "LSR" >> oneRegOp "0110" (\a -> litC 1 >>= aluOp PShiftR a)
-instrROR = mnemonic "ROR" >> oneRegOp "0111" (\a -> litC 1 >>= aluOp PShiftR a)
+instrINC = mnemonic "INC" >> oneRegOp "0011" (\a -> a + 1)
+instrCOM = mnemonic "COM" >> oneRegOp "0000" inv
+instrNEG = mnemonic "NEG" >> oneRegOp "0001" (\a -> 0 - a)
+instrASR = mnemonic "ASR" >> oneRegOp "0101" (\a -> arithShiftR a 1)
+instrLSR = mnemonic "LSR" >> oneRegOp "0110" (\a -> shiftR a 1)
+instrROR = mnemonic "ROR" >> oneRegOp "0111" (\a -> shiftR a 1)
 
 -- SWAP Rd — 1001_010d_dddd_0010
 instrSWAP :: AVR m pcW => m ()
@@ -137,11 +138,10 @@ instrSWAP = do
     mnemonic "SWAP"
     d <- defineInstruction $ do
         fixed "1001010"; d <- field @(Unsigned 5); fixed "0010"; return d
-    a   <- readRegFileF avrGPR d
-    four <- litC 4
-    hi  <- aluOp PShiftR a four
-    lo  <- aluOp PShiftL a four
-    writeRegFileF avrGPR d =<< aluOp POr hi lo
+    a <- readRegFileF avrGPR d
+    let hi = shiftR a 4
+        lo = shiftL a 4
+    writeRegFileF avrGPR d (hi .|. lo)
     pcAdvance
 
 -- DEC Rd — 1001_010d_dddd_1010  (sets Z, clears the other arith flags)
@@ -151,8 +151,7 @@ instrDEC = do
     d <- defineInstruction $ do
         fixed "1001010"; d <- field @(Unsigned 5); fixed "1010"; return d
     a   <- readRegFileF avrGPR d
-    one <- litC 1
-    r   <- aluOp PSub a one
+    let r = a - 1
     writeRegFileF avrGPR d r
     alu <- cpu id
     zf  <- isZero r
@@ -163,6 +162,9 @@ instrDEC = do
 
 -- ---------------------------------------------------------------------------
 -- MULS — signed multiply upper regs — 0000_0010_dddd_rrrr  (d+16, r+16)
+-- Same shape as MUL, but the operands are reinterpreted as signed before the
+-- (now signed) growing multiply — the only difference between MUL and MULS is
+-- the operand /type/, not the opcode.
 -- ---------------------------------------------------------------------------
 
 instrMULS :: AVR m pcW => m ()
@@ -172,11 +174,9 @@ instrMULS = do
         fixed "00000010"; d <- field @(Unsigned 4); r <- field @(Unsigned 4); return (d, r)
     a <- readRegFileFOffset avrGPR d 16
     b <- readRegFileFOffset avrGPR r 16
-    res <- aluOp PMulSigned a b
-    let r0 = CPURegister "GPR:0" :: CPURegister (Unsigned 8)
-        r1 = CPURegister "GPR:1" :: CPURegister (Unsigned 8)
-    writeReg r0 res
-    writeReg r1 res
+    let p = asUnsigned (mul (asSigned a) (asSigned b)) :: IExpr (Unsigned 16)
+    writeRegFileAt avrGPR 0 (truncateB p)
+    writeRegFileAt avrGPR 1 (slice 15 8 p)
     stubArith
     pcAdvance
 
@@ -195,15 +195,15 @@ adiwEnc pre = do
     bindBits k 4            -- KKKK (bits 3-0)
     return (d, k)
 
-wideImmOp :: AVR m pcW => String -> ALUPrim -> m ()
-wideImmOp pre op = do
+wideImmOp :: AVR m pcW => String -> Op8 -> m ()
+wideImmOp pre f = do
     (d, k) <- defineInstruction $ adiwEnc pre
     a <- readRegFileFOffset avrGPR d 24
-    let k8 = zeroExtendC (immediateF k :: IExpr 6) :: IExpr 8   -- 6 <= 8
-    writeRegFileFOffset avrGPR d 24 =<< aluOp op a k8
+    let k8 = zeroExtendC (immediateF k :: IExpr (Unsigned 6)) :: IExpr (Unsigned 8)   -- 6 <= 8
+    writeRegFileFOffset avrGPR d 24 (f a k8)
     stubArith
     pcAdvance
 
 instrADIW, instrSBIW :: AVR m pcW => m ()
-instrADIW = mnemonic "ADIW" >> wideImmOp "10010110" PAdd
-instrSBIW = mnemonic "SBIW" >> wideImmOp "10010111" PSub
+instrADIW = mnemonic "ADIW" >> wideImmOp "10010110" (+)
+instrSBIW = mnemonic "SBIW" >> wideImmOp "10010111" (-)

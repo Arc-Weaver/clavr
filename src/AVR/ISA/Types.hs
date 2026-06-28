@@ -182,8 +182,8 @@ avrCPUDef = do
 
 type AVR m pcW = ( MonadHarvardALU m, AluDef m ~ AVRALU pcW
                  , KnownNat pcW
-                 , Word m ~ IExpr 8, DataAddr m ~ IExpr 16
-                 , CodeAddr m ~ IExpr pcW, CodeWord m ~ IExpr 16 )
+                 , Word m ~ IExpr (Unsigned 8), DataAddr m ~ IExpr (Unsigned 16)
+                 , CodeAddr m ~ IExpr (Unsigned pcW), CodeWord m ~ IExpr (Unsigned 16) )
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -218,5 +218,4 @@ pcAdvance :: AVR m pcW => m ()
 pcAdvance = do
     pcR <- cpu avrPC
     p   <- readReg pcR
-    one <- litC 1
-    writeReg pcR =<< aluOp PAdd p one
+    writeReg pcR (p + 1)

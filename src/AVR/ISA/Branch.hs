@@ -5,7 +5,7 @@ module AVR.ISA.Branch where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice, add, mul, shiftL, shiftR, xor, (.&.), (.|.))
 import Isacle.ISA
 import AVR.ISA.Types
 
@@ -23,7 +23,7 @@ instrPUSH = do
     val  <- readRegFileF avrGPR d
     writeMem spV val
     one  <- litC 1
-    writeField avrSP =<< aluOp PSub spV one
+    writeField avrSP (spV - one)
     pcAdvance
 
 -- POP Rd — 1001_000d_dddd_1111
@@ -34,7 +34,7 @@ instrPOP = do
         fixed "1001000"; d <- field @(Unsigned 5); fixed "1111"; return d
     spV   <- readField avrSP
     one   <- litC 1
-    newSp <- aluOp PAdd spV one
+    let newSp = spV + one
     writeField avrSP newSp
     writeRegFileF avrGPR d =<< readMem newSp
     pcAdvance
@@ -44,16 +44,16 @@ instrPOP = do
 -- ---------------------------------------------------------------------------
 
 -- | Push a pcW-wide return address onto the stack (hi byte first, AVR convention).
-pushRetAddr :: AVR m pcW => IExpr pcW -> m ()
+pushRetAddr :: AVR m pcW => IExpr (Unsigned pcW) -> m ()
 pushRetAddr ret = do
     spV   <- readField avrSP
     eight <- litC 8
-    retHi <- aluOp PShiftR (zeroExtend ret :: IExpr 16) eight
-    writeMem spV (truncateC retHi :: IExpr 8)   -- 8 <= 16, statically checked
+    let retHi = shiftR (zeroExtend ret :: IExpr (Unsigned 16)) eight
+    writeMem spV (truncateC retHi :: IExpr (Unsigned 8))   -- 8 <= 16, statically checked
     one   <- litC 1
-    spV1  <- aluOp PSub spV one
-    writeMem spV1 (truncateB ret :: IExpr 8)
-    spV2  <- aluOp PSub spV1 one
+    let spV1 = spV - one
+    writeMem spV1 (truncateB ret :: IExpr (Unsigned 8))
+    let spV2 = spV1 - one
     writeField avrSP spV2
 
 -- | Pop a 16-bit return address from the stack and jump to it.
@@ -61,14 +61,14 @@ retFromStack :: AVR m pcW => m ()
 retFromStack = do
     spV  <- readField avrSP
     one  <- litC 1
-    spV1 <- aluOp PAdd spV one
+    let spV1 = spV + one
     lo   <- readMem spV1
-    spV2 <- aluOp PAdd spV1 one
+    let spV2 = spV1 + one
     hi   <- readMem spV2
     writeField avrSP spV2
     eight <- litC 8
-    hiW   <- aluOp PShiftL (zeroExtendC hi :: IExpr 16) eight   -- Word m ~ IExpr 8, 8 <= 16
-    ret   <- aluOp POr (zeroExtendC lo :: IExpr 16) hiW
+    let hiW = shiftL (zeroExtendC hi :: IExpr (Unsigned 16)) eight   -- Word m ~ IExpr 8, 8 <= 16
+        ret = (zeroExtendC lo :: IExpr (Unsigned 16)) .|. hiW
     writeField avrPC (zeroExtend ret)
 
 -- ---------------------------------------------------------------------------
@@ -84,9 +84,9 @@ instrRJMP = do
         fixed "1100"; k <- field @(Unsigned 12); return k
     p   <- readField avrPC
     one <- litC 1
-    p1  <- aluOp PAdd p one
-    k   <- signExtendBits (immediateF k12f :: IExpr 12)
-    writeField avrPC =<< aluOp PAdd p1 k
+    let p1 = p + one
+    k   <- signExtendBits (immediateF k12f :: IExpr (Unsigned 12))
+    writeField avrPC (p1 + k)
 
 -- RCALL k — 1101_kkkk_kkkk_kkkk  (12-bit signed offset, sign-extended)
 instrRCALL :: forall m pcW. AVR m pcW => m ()
@@ -96,10 +96,10 @@ instrRCALL = do
         fixed "1101"; k <- field @(Unsigned 12); return k
     p   <- readField avrPC
     one <- litC 1
-    ret <- aluOp PAdd p one
+    let ret = p + one
     pushRetAddr ret
-    k   <- signExtendBits (immediateF k12f :: IExpr 12)
-    writeField avrPC =<< aluOp PAdd ret k
+    k   <- signExtendBits (immediateF k12f :: IExpr (Unsigned 12))
+    writeField avrPC (ret + k)
 
 -- RET — 1001_0101_0000_1000
 instrRET :: AVR m pcW => m ()
@@ -130,14 +130,14 @@ instrBRBS = do
         fixed "111100"; k <- field @(Unsigned 7); sss <- field @(Unsigned 3); return (k, sss)
     p      <- readField avrPC
     pcOne  <- litC 1
-    p1     <- aluOp PAdd p pcOne
-    k      <- signExtendBits (immediateF k7f :: IExpr 7)
-    target <- aluOp PAdd p1 k
+    let p1 = p + pcOne
+    k      <- signExtendBits (immediateF k7f :: IExpr (Unsigned 7))
+    let target = p1 + k
     sreg   <- readField avrSREG
-    let sss8 = zeroExtendC (immediateF sssf :: IExpr 3) :: IExpr 8   -- 3 <= 8
-    shifted <- aluOp PShiftR sreg sss8
+    let sss8 = zeroExtendC (immediateF sssf :: IExpr (Unsigned 3)) :: IExpr (Unsigned 8)   -- 3 <= 8
+    let shifted = shiftR sreg sss8
     one8    <- litC 1
-    masked  <- aluOp PAnd shifted one8
+    let masked = shifted .&. one8
     cond    <- isZero =<< isZero masked   -- 1 when flag is set
     absJumpIfF avrPC cond target
 
@@ -148,14 +148,14 @@ instrBRBC = do
         fixed "111101"; k <- field @(Unsigned 7); sss <- field @(Unsigned 3); return (k, sss)
     p      <- readField avrPC
     pcOne  <- litC 1
-    p1     <- aluOp PAdd p pcOne
-    k      <- signExtendBits (immediateF k7f :: IExpr 7)
-    target <- aluOp PAdd p1 k
+    let p1 = p + pcOne
+    k      <- signExtendBits (immediateF k7f :: IExpr (Unsigned 7))
+    let target = p1 + k
     sreg   <- readField avrSREG
-    let sss8 = zeroExtendC (immediateF sssf :: IExpr 3) :: IExpr 8   -- 3 <= 8
-    shifted <- aluOp PShiftR sreg sss8
+    let sss8 = zeroExtendC (immediateF sssf :: IExpr (Unsigned 3)) :: IExpr (Unsigned 8)   -- 3 <= 8
+    let shifted = shiftR sreg sss8
     one8    <- litC 1
-    masked  <- aluOp PAnd shifted one8
+    let masked = shifted .&. one8
     cond    <- isZero masked              -- 1 when flag is clear
     absJumpIfF avrPC cond target
 
@@ -197,7 +197,7 @@ instrICALL = do
     defineInstruction $ fixed "1001010100001001"
     p    <- readField avrPC
     one  <- litC 1
-    ret  <- aluOp PAdd p one
+    let ret = p + one
     pushRetAddr ret
     writeField avrPC . zeroExtend =<< readField avrZ
 
@@ -230,8 +230,8 @@ instrCALL = do
     p    <- readField avrPC
     tgt  <- readCode p
     one  <- litC 1
-    p1   <- aluOp PAdd p one
-    ret  <- aluOp PAdd p1 one        -- return address = after both words (p+2)
+    let p1 = p + one
+        ret = p1 + one        -- return address = after both words (p+2)
     pushRetAddr ret
     writeField avrPC (zeroExtend tgt)
 

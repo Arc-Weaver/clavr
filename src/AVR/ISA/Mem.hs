@@ -4,7 +4,7 @@ module AVR.ISA.Mem where
 
 import Prelude hiding (Word)
 
-import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice, add, mul)
 import Isacle.ISA
 import AVR.ISA.Types
 
@@ -37,7 +37,7 @@ instrLD_Zplus = do
     v    <- readMem ptr
     writeRegFileF avrGPR d v
     one  <- litC 1
-    writeField avrZ =<< aluOp PAdd ptr one
+    writeField avrZ (ptr + one)
     pcAdvance
 
 -- LD Rd, -Z — 1001_000d_dddd_0010
@@ -48,7 +48,7 @@ instrLD_Zminus = do
         fixed "1001000"; d <- field @(Unsigned 5); fixed "0010"; return d
     ptr  <- readField avrZ
     one  <- litC 1
-    ptr1 <- aluOp PSub ptr one
+    let ptr1 = ptr - one
     writeField avrZ ptr1
     v    <- readMem ptr1
     writeRegFileF avrGPR d v
@@ -75,7 +75,7 @@ instrLD_Yplus = do
     v   <- readMem ptr
     writeRegFileF avrGPR d v
     one <- litC 1
-    writeField avrY =<< aluOp PAdd ptr one
+    writeField avrY (ptr + one)
     pcAdvance
 
 -- LD Rd, -Y — 1001_000d_dddd_1010
@@ -86,7 +86,7 @@ instrLD_Yminus = do
         fixed "1001000"; d <- field @(Unsigned 5); fixed "1010"; return d
     ptr  <- readField avrY
     one  <- litC 1
-    ptr1 <- aluOp PSub ptr one
+    let ptr1 = ptr - one
     writeField avrY ptr1
     v    <- readMem ptr1
     writeRegFileF avrGPR d v
@@ -113,7 +113,7 @@ instrLD_Xplus = do
     v   <- readMem ptr
     writeRegFileF avrGPR d v
     one <- litC 1
-    writeField avrX =<< aluOp PAdd ptr one
+    writeField avrX (ptr + one)
     pcAdvance
 
 -- LD Rd, -X — 1001_000d_dddd_1110
@@ -124,7 +124,7 @@ instrLD_Xminus = do
         fixed "1001000"; d <- field @(Unsigned 5); fixed "1110"; return d
     ptr  <- readField avrX
     one  <- litC 1
-    ptr1 <- aluOp PSub ptr one
+    let ptr1 = ptr - one
     writeField avrX ptr1
     v    <- readMem ptr1
     writeRegFileF avrGPR d v
@@ -151,7 +151,7 @@ instrST_Zplus = do
     v   <- readRegFileF avrGPR r
     writeMem ptr v
     one <- litC 1
-    writeField avrZ =<< aluOp PAdd ptr one
+    writeField avrZ (ptr + one)
     pcAdvance
 
 -- ST -Z, Rr — 1001_001r_rrrr_0010
@@ -162,7 +162,7 @@ instrST_Zminus = do
         fixed "1001001"; r <- field @(Unsigned 5); fixed "0010"; return r
     ptr  <- readField avrZ
     one  <- litC 1
-    ptr1 <- aluOp PSub ptr one
+    let ptr1 = ptr - one
     writeField avrZ ptr1
     v    <- readRegFileF avrGPR r
     writeMem ptr1 v
@@ -189,7 +189,7 @@ instrST_Yplus = do
     v   <- readRegFileF avrGPR r
     writeMem ptr v
     one <- litC 1
-    writeField avrY =<< aluOp PAdd ptr one
+    writeField avrY (ptr + one)
     pcAdvance
 
 -- ST -Y, Rr — 1001_001r_rrrr_1010
@@ -200,7 +200,7 @@ instrST_Yminus = do
         fixed "1001001"; r <- field @(Unsigned 5); fixed "1010"; return r
     ptr  <- readField avrY
     one  <- litC 1
-    ptr1 <- aluOp PSub ptr one
+    let ptr1 = ptr - one
     writeField avrY ptr1
     v    <- readRegFileF avrGPR r
     writeMem ptr1 v
@@ -227,7 +227,7 @@ instrST_Xplus = do
     v   <- readRegFileF avrGPR r
     writeMem ptr v
     one <- litC 1
-    writeField avrX =<< aluOp PAdd ptr one
+    writeField avrX (ptr + one)
     pcAdvance
 
 -- ST -X, Rr — 1001_001r_rrrr_1110
@@ -238,7 +238,7 @@ instrST_Xminus = do
         fixed "1001001"; r <- field @(Unsigned 5); fixed "1110"; return r
     ptr  <- readField avrX
     one  <- litC 1
-    ptr1 <- aluOp PSub ptr one
+    let ptr1 = ptr - one
     writeField avrX ptr1
     v    <- readRegFileF avrGPR r
     writeMem ptr1 v
@@ -257,8 +257,8 @@ instrLDS = do
     p    <- readField avrPC
     addr <- readCode p
     one  <- litC 1
-    p1   <- aluOp PAdd p one
-    writeField avrPC =<< aluOp PAdd p1 one   -- skip opcode word AND address word
+    let p1 = p + one
+    writeField avrPC (p1 + one)   -- skip opcode word AND address word
     v    <- readMem addr
     writeRegFileF avrGPR d v
 
@@ -271,7 +271,7 @@ instrSTS = do
     p    <- readField avrPC
     addr <- readCode p
     one  <- litC 1
-    p1   <- aluOp PAdd p one
-    writeField avrPC =<< aluOp PAdd p1 one
+    let p1 = p + one
+    writeField avrPC (p1 + one)
     v    <- readRegFileF avrGPR r
     writeMem addr v

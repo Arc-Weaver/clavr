@@ -68,6 +68,18 @@ tests =
         , tcExpected = [("gpio_port", "0x186"), ("gpio_ddr", "0x255")]
         }
 
+    -- MUL/MULS test: 200*3=600 and (-3)*5=-15, proving the 16-bit product is
+    -- genuinely split across R1:R0. MUL writes two registers (R0 low, R1 high);
+    -- the synth sequences them across two cycles through the single rf write
+    -- port. Folds all four product bytes into GPIO_PORT = 0xAA (170 decimal).
+    , TestCase
+        { tcName     = "test_mul"
+        , tcProgBin  = "tests/fixtures/mul_test.bin"
+        , tcTbVhd    = "tests/ghdl/mul_tb.vhd"
+        , tcStopNs   = 1000
+        , tcExpected = [("gpio_port", "0x170"), ("gpio_ddr", "0x255")]
+        }
+
     -- Branch / subroutine test: RJMP + RCALL/RET + BRNE countdown loop
     -- Accumulates 5+4+3+2+1 = 15 = 0x0F → GPIO_PORT = 15 decimal
     , TestCase

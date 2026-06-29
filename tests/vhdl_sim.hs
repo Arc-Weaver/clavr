@@ -80,6 +80,47 @@ tests =
         , tcExpected = [("gpio_port", "0x170"), ("gpio_ddr", "0x255")]
         }
 
+    -- Z-pointer test: proves Z is a VIEW over R31:R30 (the GPR file). Sets Z via
+    -- ldi r30/r31, ST/LD through Z. Previously impossible (avrZ was separate
+    -- storage). GPIO_PORT = 0xC3 (195 decimal).
+    , TestCase
+        { tcName     = "test_zptr"
+        , tcProgBin  = "tests/fixtures/zptr_test.bin"
+        , tcTbVhd    = "tests/ghdl/zptr_tb.vhd"
+        , tcStopNs   = 1000
+        , tcExpected = [("gpio_port", "0x195"), ("gpio_ddr", "0x255")]
+        }
+
+    -- GPR-in-data-space test: aliasFile maps the register file at 0x00, so a read
+    -- of data address 0x05 returns R5. GPIO_PORT = 0x99 (153 decimal).
+    , TestCase
+        { tcName     = "test_gpralias"
+        , tcProgBin  = "tests/fixtures/gpralias_test.bin"
+        , tcTbVhd    = "tests/ghdl/gpralias_tb.vhd"
+        , tcStopNs   = 1000
+        , tcExpected = [("gpio_port", "0x153"), ("gpio_ddr", "0x255")]
+        }
+
+    -- Multi-byte alias test: SP is 16-bit, aliased at 0x5D, so SPL=0x5D and
+    -- SPH=0x5E (endian-correct). Write SP=0x1234 via SPL/SPH, read SPH = 0x12.
+    , TestCase
+        { tcName     = "test_sph"
+        , tcProgBin  = "tests/fixtures/sph_test.bin"
+        , tcTbVhd    = "tests/ghdl/sph_tb.vhd"
+        , tcStopNs   = 1000
+        , tcExpected = [("gpio_port", "0x18"), ("gpio_ddr", "0x255")]
+        }
+
+    -- GPR file WRITE via data space: sts 0x07 writes R7 (the file is just a block
+    -- of registers; a store in the alias window is another writer). GPIO = 0x7E.
+    , TestCase
+        { tcName     = "test_gprwrite"
+        , tcProgBin  = "tests/fixtures/gprwrite_test.bin"
+        , tcTbVhd    = "tests/ghdl/gprwrite_tb.vhd"
+        , tcStopNs   = 1000
+        , tcExpected = [("gpio_port", "0x126"), ("gpio_ddr", "0x255")]
+        }
+
     -- Branch / subroutine test: RJMP + RCALL/RET + BRNE countdown loop
     -- Accumulates 5+4+3+2+1 = 15 = 0x0F → GPIO_PORT = 15 decimal
     , TestCase

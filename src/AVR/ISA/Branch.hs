@@ -139,7 +139,7 @@ instrBRBS = do
     one8    <- litC 1
     let masked = shifted .&. one8
     cond    <- isZero =<< isZero masked   -- 1 when flag is set
-    absJumpIfF avrPC cond target
+    writeField avrPC (ifexp cond target p1)   -- taken: target; not-taken: PC+1
 
 instrBRBC :: forall m pcW. AVR m pcW => m ()
 instrBRBC = do
@@ -157,7 +157,7 @@ instrBRBC = do
     one8    <- litC 1
     let masked = shifted .&. one8
     cond    <- isZero masked              -- 1 when flag is clear
-    absJumpIfF avrPC cond target
+    writeField avrPC (ifexp cond target p1)   -- taken: target; not-taken: PC+1
 
 -- Named aliases — kept for documentation; same encodings as BRBS/BRBC with fixed sss bits.
 instrBREQ, instrBRNE :: AVR m pcW => m ()

@@ -95,7 +95,7 @@ test-suite test-library
   main-is: unittests.hs
   build-depends:
     base >= 4.12 && < 4.22,
-    tasty >= 1.2 && < 1.6,
+    containers,
     clavr,
     isacle,
     isacle:isacle-hdl

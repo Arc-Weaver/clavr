@@ -22,7 +22,8 @@ import Data.Proxy (Proxy(..))
 import GHC.TypeLits (natVal)
 import Control.Monad (when)
 
-import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice)
+import Hdl.Bits hiding (zeroExtend, signExtend, truncateB, bitCoerce, slice, add, mul, shiftL, shiftR, xor, (.&.), (.|.))
+import Hdl.Types (HdlType)
 import Isacle.ISA
 import AVR.ISA.Types
 import AVR.ISA.Arith
@@ -76,7 +77,7 @@ avrExtInstrs = [ instrJMP, instrCALL, instrLDS, instrSTS ]
 -- | AVR interrupt service entry sequence.
 -- Saves PC bytes to the stack, clears the I flag, then jumps to the
 -- externally-supplied vector address.  A third byte is pushed for 22-bit PCs.
-avrIrqBody :: forall m pcW. (AVR m pcW, MonadIRQ m, KnownNat (IrqAddrW m)) => m ()
+avrIrqBody :: forall m pcW. (AVR m pcW, MonadIRQ m, HdlType (IrqAddr m)) => m ()
 avrIrqBody = do
     irqGate (readFlag avrFlagI)
     spR <- cpu avrSP
@@ -85,12 +86,12 @@ avrIrqBody = do
     eight <- litC 8
     lo    <- resizeBits pc
     push spR lo
-    hiRaw <- aluOp PShiftR pc eight
+    let hiRaw = shiftR pc eight
     hi    <- resizeBits hiRaw
     push spR hi
     when (fromIntegral (natVal (Proxy @pcW)) > (16 :: Int)) $ do
         sixteen <- litC 16
-        topRaw  <- aluOp PShiftR pc sixteen
+        let topRaw = shiftR pc sixteen
         tb      <- resizeBits topRaw
         push spR tb
     writeFlag avrFlagI 0
@@ -103,7 +104,7 @@ avrIrqBody = do
 -- ---------------------------------------------------------------------------
 
 -- | Assemble an ISADef from a caller-supplied instruction list.
-avrISAWith :: (AVR m pcW, MonadIRQ m, KnownNat (IrqAddrW m)) => [m ()] -> ISADef m
+avrISAWith :: (AVR m pcW, MonadIRQ m, HdlType (IrqAddr m)) => [m ()] -> ISADef m
 avrISAWith instrs = defineISA ISADef
     { isaPc            = SomeCPURegister <$> cpu avrPC
     , isaInterruptBody = Just avrIrqBody
@@ -122,13 +123,13 @@ avrISAWith instrs = defineISA ISADef
     }
 
 -- | ATtiny — 16-bit PC, core instructions only (no multiply, no 32-bit ops).
-avrATtinyISA :: (AVR m 16, MonadIRQ m, KnownNat (IrqAddrW m)) => ISADef m
+avrATtinyISA :: (AVR m 16, MonadIRQ m, HdlType (IrqAddr m)) => ISADef m
 avrATtinyISA = avrISAWith avrCoreInstrs
 
 -- | ATmega — 16-bit PC, full instruction set including multiply and 32-bit ops.
-avrATmegaISA :: (AVR m 16, MonadIRQ m, KnownNat (IrqAddrW m)) => ISADef m
+avrATmegaISA :: (AVR m 16, MonadIRQ m, HdlType (IrqAddr m)) => ISADef m
 avrATmegaISA = avrISAWith (avrCoreInstrs ++ avrMulInstrs ++ avrExtInstrs)
 
 -- | ATxmega / large AVR — 22-bit PC, full instruction set.
-avrATxmegaISA :: (AVR m 22, MonadIRQ m, KnownNat (IrqAddrW m)) => ISADef m
+avrATxmegaISA :: (AVR m 22, MonadIRQ m, HdlType (IrqAddr m)) => ISADef m
 avrATxmegaISA = avrISAWith (avrCoreInstrs ++ avrMulInstrs ++ avrExtInstrs)
